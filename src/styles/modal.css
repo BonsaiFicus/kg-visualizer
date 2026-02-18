@@ -1,0 +1,134 @@
+.modal-backdrop {
+  	position: fixed;
+  	top: 60px;
+  	left: 0;
+  	right: 0;
+  	bottom: 0;
+  	background: rgba(0, 0, 0, 0.5);
+  	backdrop-filter: blur(8px);
+  	-webkit-backdrop-filter: blur(8px);
+  	z-index: 600;
+  	display: flex;
+  	align-items: center;
+  	justify-content: center;
+  	padding: 20px;
+  	animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-container {
+  background: #2d2f34;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  width: 90%;
+  max-width: 1200px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #3e4146;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #f7f7f7;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #bbb;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #3e4146;
+  color: #fff;
+}
+
+.modal-body {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+.modal-logs {
+  margin: 0;
+  padding: 16px;
+  background: #1e2024;
+  border: 1px solid #3e4146;
+  border-radius: 8px;
+  color: #e8e8e8;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .modal-container {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .modal-header {
+    padding: 16px 18px;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
+  }
+
+  .modal-body {
+    padding: 18px;
+  }
+
+  .modal-logs {
+    font-size: 13px;
+    padding: 12px;
+  }
+}

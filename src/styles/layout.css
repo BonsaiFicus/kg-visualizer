@@ -1,0 +1,92 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  height: 60px;
+  background-color: #3b3b98;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  z-index: 200;
+}
+
+.app-header h1 {
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.github-button {
+  padding: 8px 16px;
+  background-color: #2d2d2d;
+  color: #ffffff;
+  border: 1px solid #555;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.github-button:hover {
+  background-color: #1a1a1a;
+  border-color: #888;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.cnf-toggle-button {
+  padding: 8px 20px;
+  background-color: #fff;
+  color: #3b3b98;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cnf-toggle-button:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.cnf-toggle-button.active {
+  background-color: #2ecc71;
+  color: white;
+  border-color: #2ecc71;
+}
+
+.cnf-toggle-button.active:hover {
+  background-color: #27ae60;
+  border-color: #27ae60;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    flex-direction: column;
+    overflow: auto;
+  }
+}
