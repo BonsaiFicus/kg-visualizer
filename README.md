@@ -2,6 +2,9 @@
 
 Interaktiver Visualizer für Kontextfreie Grammatikern (CFGs) und Transformationen in die Chomsky Normal Form (CNF)
 
+Hier kommst du direkt zur Web-Applikation:
+https://github.com/BonsaiFicus/kg-visualizer
+
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Build](https://img.shields.io/badge/build-passing-success.svg)
 
