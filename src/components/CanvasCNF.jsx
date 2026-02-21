@@ -15,25 +15,34 @@ const CanvasCNF = React.forwardRef(function CanvasCNF(
 ) {
 	const [cnfTreeLayout, setCnfTreeLayout] = useState(null);
 	const [highlightTrigger, setHighlightTrigger] = useState(0);
+	const [currentStep, setCurrentStep] = useState(null);
+
+	useEffect(() => {
+		const handleStepChange = () => {
+			setCurrentStep(stepManager.getCurrentStep());
+			setHighlightTrigger(prev => prev + 1);
+		};
+
+		const unsubscribe = stepManager.subscribe(handleStepChange);
+		handleStepChange(); // Initialisiere mit aktuellem Step
+		return unsubscribe;
+	}, []);
 
 	useEffect(() => {
 		if (cnfGraph && Object.keys(cnfGraph).length > 0) {
-			const cnfGrammar = { ...grammar, productions: cnfGraph };
+			// Verwende startSymbol aus dem aktuellen Step, falls vorhanden
+			const startSymbol = currentStep?.state?.startSymbol || grammar.startSymbol || 'S';
+			const cnfGrammar = { 
+				...grammar, 
+				productions: cnfGraph,
+				startSymbol: startSymbol
+			};
 			const layout = buildTreeLayout(cnfGrammar);
 			setCnfTreeLayout(layout);
 		} else {
 			setCnfTreeLayout(null);
 		}
-	}, [cnfGraph, grammar]);
-
-	useEffect(() => {
-		const handleStepChange = () => {
-			setHighlightTrigger(prev => prev + 1);
-		};
-
-		const unsubscribe = stepManager.subscribe(handleStepChange);
-		return unsubscribe;
-	}, []);
+	}, [cnfGraph, grammar, currentStep]);
 
 	/**
 	 * Rendert den CNF-Graphen fuer die aktuelle Zwischengrammatik.

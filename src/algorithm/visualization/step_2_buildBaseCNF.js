@@ -97,10 +97,20 @@ function getValidProductions(productions, productiveSet) {
  * Erstellt den Initialschritt fuer den CNF-Basisgraphen.
  */
 function buildInitStep(startSymbol, productions, baseCNFProductions, productiveSet) {
+	const grammarStr = `${startSymbol} → ${productions.join(' | ')}`;
 	return {
 		id: 'cnf-init',
 		stage: 'cnf-build',
-		description: `Wechsel zum CNF Canvas - Starte mit Startsymbol ${startSymbol}:\n${productions.map(p => `${startSymbol} -> ${p}`).join('\n')}`,
+		description: `═══════════════════════════════════════════════════
+PHASE 2: CNF-BASIS AUFBAUEN
+═══════════════════════════════════════════════════
+
+Starte mit produktiven Variablen aus G:
+
+G':
+${grammarStr}
+
+Produktive Variablen: ${Array.from(productiveSet).sort().join(', ')}`,
 		delta: {
 			action: 'init-with-start',
 			variable: startSymbol,

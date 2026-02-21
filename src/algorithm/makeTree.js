@@ -108,10 +108,11 @@ function buildNodes({
 	startX,
 	startY,
 }) {
-	const queue = [{ symbol: 'S', x: startX, y: startY, rank: 0, parent: null }];
-	visited.add('S');
-	nodes.push({ symbol: 'S', x: startX, y: startY });
-	nodePositions.set('S', { x: startX, y: startY });
+	const startSymbol = grammar.startSymbol || 'S';
+	const queue = [{ symbol: startSymbol, x: startX, y: startY, rank: 0, parent: null }];
+	visited.add(startSymbol);
+	nodes.push({ symbol: startSymbol, x: startX, y: startY });
+	nodePositions.set(startSymbol, { x: startX, y: startY });
 
 	while (queue.length > 0) {
 		const current = queue.shift();
@@ -240,9 +241,10 @@ function relaxNodeOverlaps(nodes, nodePositions, minDistance) {
  * Baut die CFG-Kanten aus den Produktionen.
  */
 function buildEdges({ grammar, edges, nodePositions }) {
+	const startSymbol = grammar.startSymbol || 'S';
 	const visited = new Set();
-	const edgeQueue = [{ symbol: 'S', ...nodePositions.get('S') }];
-	visited.add('S');
+	const edgeQueue = [{ symbol: startSymbol, ...nodePositions.get(startSymbol) }];
+	visited.add(startSymbol);
 
 	while (edgeQueue.length > 0) {
 		const current = edgeQueue.shift();

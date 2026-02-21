@@ -124,7 +124,9 @@ function buildAllSteps(parsed) {
 
 	const epsSteps = generateRemoveEpsilonSteps(parsed, baseCNF);
 	const cnfAfterUnit = getLastCnfGraph(epsSteps, baseCNF);
-
+	
+	// parsed.startSymbol wird in generateRemoveEpsilonSteps aktualisiert, wenn eps in der Sprache ist
+	// Übergebe die aktualisierte parsed Grammatik zu den folgenden Schritten
 	const longSteps = generateIsolateLongSteps(parsed, cnfAfterUnit);
 	const cnfAfterLong = getLastCnfGraph(longSteps, cnfAfterUnit);
 

@@ -91,7 +91,7 @@ export function distancePointToSegment(px, py, x1, y1, x2, y2) {
  */
 function getNodeFillColor(symbol) {
 	if (symbol === 'eps') return '#9C27B0';
-	if (symbol === 'S') return '#ff9900';
+	if (symbol === 'S' || symbol === 'S0') return '#ff9900';
 	return '#abababff';
 }
 

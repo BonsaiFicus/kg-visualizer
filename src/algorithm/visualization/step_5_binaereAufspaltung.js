@@ -1,8 +1,47 @@
 /**
+ * Parsed eine Produktion in einzelne Symbole und erkennt mehrzeilige Variablen wie S0, A1, usw.
+ * @param {string} production - Die zu parsende Produktion (z.B. "S0AB", "ABc")
+ * @returns {string[]} Array der Symbole (z.B. ["S0", "A", "B"])
+ */
+function parseSymbols(production) {
+	// Spezialfall: eps
+	if (production === 'eps') {
+		return ['eps'];
+	}
+
+	const symbols = [];
+	let i = 0;
+
+	while (i < production.length) {
+		// Prüfe ob aktuelles Zeichen ein Großbuchstabe ist
+		if (/[A-Z]/.test(production[i])) {
+			let symbol = production[i];
+			i++;
+
+			// Sammle nachfolgende Ziffern
+			while (i < production.length && /\d/.test(production[i])) {
+				symbol += production[i];
+				i++;
+			}
+
+			symbols.push(symbol);
+		} else {
+			// Terminal oder sonstiges Zeichen
+			symbols.push(production[i]);
+			i++;
+		}
+	}
+
+	return symbols;
+}
+
+/**
  * Prueft, ob ein Symbol der CFG ein Nichtterminal ist.
+ * Akzeptiert sowohl einzelne Großbuchstaben (A, B, C) als auch
+ * Großbuchstaben mit Ziffern (S0, A1, X2, etc.).
  */
 function isNonTerminal(symbol) {
-	return /^[A-Z]$/.test(symbol);
+	return /^[A-Z]\d*$/.test(symbol);
 }
 
 /**
@@ -25,7 +64,7 @@ function detectCycleWithSteps(productions) {
 
 	Object.keys(productions).forEach(A => {
 		(productions[A] || []).forEach(prod => {
-			prod.split('').forEach(symbol => {
+			parseSymbols(prod).forEach(symbol => {
 				if (isNonTerminal(symbol) && symbol in graph) {
 					graph[A].add(symbol);
 				}
@@ -169,7 +208,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 		stage: 'cnf-binary',
 		description: `Binäre Aufspaltung: Kaskadiere lange Produktionen (Übergang zu G₃)\n\nAktuelle Grammatik:\n${grammarLinesInit}`,
 		delta: { action: 'init' },
-		state: { baseCNFProductions: deepCopy(productions), completed: false },
+		state: { baseCNFProductions: deepCopy(productions), completed: false, startSymbol },
 		clearLogs: false,
 		highlightVariables: varsSortedInit,
 		highlightVariablesStyle: 'processing',
@@ -187,7 +226,13 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 
 		for (let i = 0; i < prods.length; i++) {
 			const prod = prods[i];
-			const symbols = prod.split('');
+			
+			// Überspringe eps und Produktionen mit Länge < 3
+			if (prod === 'eps') {
+				continue;
+			}
+			
+			const symbols = parseSymbols(prod);
 
 			if (symbols.length >= 3) {
 				const m = symbols.length;
@@ -207,7 +252,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 					stage: 'cnf-binary',
 					description: `Spalte Produktion ${A} -> ${prod} auf (${m} Symbole)\nErstelle Hilfsvariablen: ${helperVarList}\n\nAktuelle Grammatik:\n${linesBeforeSplit}`,
 					delta: { action: 'create-helpers', variable: A, production: prod, helpers: helperVars },
-					state: { baseCNFProductions: deepCopy(current), completed: false },
+				state: { baseCNFProductions: deepCopy(current), completed: false, startSymbol },
 					clearLogs: false,
 					highlightVariables: [A],
 					highlightVariablesStyle: 'focus',
@@ -229,7 +274,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 					stage: 'cnf-binary',
 					description: `Ersetze ${A} -> ${prod} durch ${A} -> ${firstRule}\n\nAktuelle Grammatik:\n${linesAfterRule}`,
 					delta: { action: 'add-binary-rule', variable: A, rule: `${A} -> ${firstRule}`, originalProduction: prod },
-					state: { baseCNFProductions: deepCopy(current), completed: false },
+					state: { baseCNFProductions: deepCopy(current), completed: false, startSymbol },
 					clearLogs: false,
 					highlightVariables: [A],
 					highlightVariablesStyle: 'focus',
@@ -253,7 +298,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 						stage: 'cnf-binary',
 						description: `Füge binäre Regel hinzu: ${helperVars[j]} -> ${rule}\n\nAktuelle Grammatik:\n${linesAfterRule}`,
 						delta: { action: 'add-binary-rule', variable: helperVars[j], rule: `${helperVars[j]} -> ${rule}`, originalProduction: prod },
-						state: { baseCNFProductions: deepCopy(current), completed: false },
+						state: { baseCNFProductions: deepCopy(current), completed: false, startSymbol },
 						clearLogs: false,
 						highlightVariables: [helperVars[j]],
 						highlightVariablesStyle: 'focus',
@@ -278,7 +323,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 					stage: 'cnf-binary',
 					description: `Füge binäre Regel hinzu: ${helperVars[lastHelperIdx]} -> ${lastRule}\n\nAktuelle Grammatik:\n${linesAfterRule}`,
 					delta: { action: 'add-binary-rule', variable: helperVars[lastHelperIdx], rule: `${helperVars[lastHelperIdx]} -> ${lastRule}`, originalProduction: prod },
-					state: { baseCNFProductions: deepCopy(current), completed: false },
+					state: { baseCNFProductions: deepCopy(current), completed: false, startSymbol },
 					clearLogs: false,
 					highlightVariables: [helperVars[lastHelperIdx]],
 					highlightVariablesStyle: 'focus',
@@ -299,9 +344,21 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 	steps.push({
 		id: 'cnf-binary-complete',
 		stage: 'cnf-binary',
-		description: `Binäre Aufspaltung abgeschlossen. Grammatik ist nun in Chomsky-Normalform (CNF)!\n\nFinale CNF-Grammatik:\n${grammarLinesFinal}`,
+		description: `
+BINÄRE AUFSPALTUNG ABGESCHLOSSEN - CNF ERREICHT!
+
+
+Die Grammatik ist jetzt in CHOMSKY-NORMALFORM (CNF)!
+
+Alle Produktionen haben eine der folgenden Formen:
+  • X → YZ  (zwei Variablen)
+  • X → a   (ein Terminal)
+  • S₀ → ε   (nur für Startvariable, wenn ε ∈ L(G))
+
+FINALE CNF-GRAMMATIK:
+${grammarLinesFinal}`,
 		delta: { action: 'complete' },
-		state: { baseCNFProductions: deepCopy(current), completed: true },
+		state: { baseCNFProductions: deepCopy(current), completed: true, startSymbol },
 		clearLogs: false,
 		highlightVariables: varsSortedFinal,
 		highlightVariablesStyle: 'productive',
@@ -337,7 +394,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 			stage: 'cnf-binary',
 			description,
 			delta: { action: 'cycle-step', type: dfsStep.type },
-			state: { baseCNFProductions: deepCopy(current), completed: false },
+			state: { baseCNFProductions: deepCopy(current), completed: false, startSymbol },
 			clearLogs: false,
 			highlightVariables: highlightVars,
 			highlightVariablesStyle: dfsStep.type === 'cycle-found' ? 'warning' : 'focus',
@@ -354,7 +411,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 			stage: 'cnf-binary',
 			description: `Zyklenerkennung abgeschlossen.\n\nERGEBNIS: Die Sprache ist UNENDLICH\n\nDas Abhängigkeitsgraph enthält einen Zyklus: ${cycleDetection.cycleNodes.join(' -> ')}\nDurch wiederholte Anwendung von Produktionen entlang des Zyklus können beliebig lange Wörter erzeugt werden.`,
 			delta: { action: 'result', isFinite: false },
-			state: { baseCNFProductions: deepCopy(current), isInfinite: true, completed: true },
+			state: { baseCNFProductions: deepCopy(current), isInfinite: true, completed: true, startSymbol },
 			clearLogs: false,
 			highlightVariables: varsSortedFinal,
 			highlightVariablesStyle: 'warning',
@@ -368,7 +425,7 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 			stage: 'cnf-binary',
 			description: `Zyklenerkennung abgeschlossen.\n\nERGEBNIS: Die Sprache ist ENDLICH\n\nDas Abhängigkeitsgraph ist azyklisch (DAG). Es können nur endlich viele verschiedene Wörter erzeugt werden.`,
 			delta: { action: 'result', isFinite: true },
-			state: { baseCNFProductions: deepCopy(current), isInfinite: false, completed: true },
+			state: { baseCNFProductions: deepCopy(current), isInfinite: false, completed: true, startSymbol },
 			clearLogs: false,
 			highlightVariables: varsSortedFinal,
 			highlightVariablesStyle: 'productive',

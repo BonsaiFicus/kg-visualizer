@@ -113,6 +113,27 @@ function checkForProductiveProduction(prods, productiveSet) {
 export default generateIsProductiveSteps;
 
 /**
+ * Parst eine Produktion in einzelne Grammatik-Symbole.
+ * Erkennt Variablen wie S0, X1 (Großbuchstabe + Ziffern) als einzelne Symbole.
+ */
+function parseSymbols(production) {
+	const symbols = [];
+	let i = 0;
+	while (i < production.length) {
+		if (/[A-Z]/.test(production[i])) {
+			let symbol = production[i++];
+			while (i < production.length && /[0-9]/.test(production[i])) {
+				symbol += production[i++];
+			}
+			symbols.push(symbol);
+		} else {
+			symbols.push(production[i++]);
+		}
+	}
+	return symbols;
+}
+
+/**
  * Prueft, ob ein Symbol der CFG ein Terminal ist.
  */
 function isTerminal(symbol) {
@@ -123,7 +144,7 @@ function isTerminal(symbol) {
  * Prueft, ob ein Symbol der CFG ein Nichtterminal ist.
  */
 function isNonTerminal(symbol) {
-	return /^[A-Z]$/.test(symbol);
+	return /^[A-Z][0-9]*$/.test(symbol);
 }
 
 /**
@@ -131,7 +152,7 @@ function isNonTerminal(symbol) {
  */
 function isTerminalOnly(production) {
 	if (production === 'eps') return true;
-	return production.split('').every(symbol => isTerminal(symbol));
+	return parseSymbols(production).every(symbol => isTerminal(symbol));
 }
 
 /**
@@ -140,7 +161,7 @@ function isTerminalOnly(production) {
 function isProductive(production, productiveSet) {
 	if (production === 'eps') return true;
 
-	return production.split('').every(symbol => {
+	return parseSymbols(production).every(symbol => {
 		return isTerminal(symbol) || productiveSet.has(symbol);
 	});
 }
@@ -164,7 +185,7 @@ function getReachableVariables({ productions, startSymbol }) {
 
 		for (let i = 0; i < prods.length; i++) {
 			const prod = prods[i];
-			const symbols = prod.split('');
+			const symbols = parseSymbols(prod);
 
 			for (let j = 0; j < symbols.length; j++) {
 				const sym = symbols[j];

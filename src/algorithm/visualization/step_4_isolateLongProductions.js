@@ -79,7 +79,7 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 		stage: 'cnf-long',
 		description: `Terminals in langen Produktionen isolieren (Übergang zu G₂)\n\nAktuelle Grammatik:\n${grammarLinesInit}`,
 		delta: { action: 'init' },
-		state: { baseCNFProductions: deepCopy(productions), completed: false },
+		state: { baseCNFProductions: deepCopy(productions), completed: false, startSymbol },
 		clearLogs: false,
 		highlightVariables: varsSortedInit,
 		highlightVariablesStyle: 'processing',
@@ -105,7 +105,7 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 			stage: 'cnf-long',
 			description: `Führe neue Variable ${newVar} für Terminal '${terminal}' ein und füge ${newVar} -> ${terminal} hinzu.\n\nAktuelle Grammatik:\n${newVarLines}`,
 			delta: { action: 'create-terminal-var', variable: newVar, terminal },
-			state: { baseCNFProductions: deepCopy(productions), completed: false },
+			state: { baseCNFProductions: deepCopy(productions), completed: false, startSymbol },
 			clearLogs: false,
 			highlightVariables: [newVar],
 			highlightVariablesStyle: 'focus',
@@ -129,7 +129,8 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 			let p = prods[i];
 			let prevProd = p; // vor jeder Ersetzung die vorherige Produktion merken
 
-			if (p.length < 2) {
+			// Überspringe eps und Produktionen mit Länge < 2
+			if (p === 'eps' || p.length < 2) {
 				continue;
 			}
 
@@ -166,7 +167,7 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 					stage: 'cnf-long',
 					description: `Ersetze Produktion von ${A}:\n ${A} -> ${prevProd}\ndurch\n ${A} -> ${newProd}\n\nAktuelle Grammatik:\n${lines}`,
 					delta: { action: 'replace-terminal', variable: A, from: prevProd, to: newProd, position: pos },
-					state: { baseCNFProductions: deepCopy(current), completed: false },
+					state: { baseCNFProductions: deepCopy(current), completed: false, startSymbol },
 					clearLogs: false,
 					highlightVariables: [A],
 					highlightVariablesStyle: 'focus',
@@ -187,9 +188,20 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 	steps.push({
 		id: 'cnf-long-complete',
 		stage: 'cnf-long',
-		description: `Alle langen Produktionen enthalten nun nur Variablenketten (Übergang zu G₂ abgeschlossen).\n\nNeue Grammatik:\n${grammarLinesFinal}`,
+		description: `
+TERMINAL-ISOLIERUNG ABGESCHLOSSEN (G'' → G''')
+
+
+In langen Produktionen (Länge ≥ 2) sind jetzt nur noch:
+- Variablenpaare (AB, X₁X₂, etc.) oder
+- Einzelne Terminals (a, b, c)
+
+Und alle Terminals sind isoliert in neuen Unit-Produkionen (X → a).
+
+FINALE GRAMMATIK G''':
+${grammarLinesFinal}`,
 		delta: { action: 'complete' },
-		state: { baseCNFProductions: deepCopy(current), completed: true },
+		state: { baseCNFProductions: deepCopy(current), completed: true, startSymbol },
 		clearLogs: false,
 		highlightVariables: varsSortedFinal,
 		highlightVariablesStyle: 'productive',

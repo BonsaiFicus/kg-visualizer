@@ -1,4 +1,99 @@
 /**
+ * Parsed eine Produktion in einzelne Symbole und erkennt mehrzeilige Variablen wie S0, A1, usw.
+ * @param {string} production - Die zu parsende Produktion (z.B. "S0AB", "ABc")
+ * @returns {string[]} Array der Symbole (z.B. ["S0", "A", "B"])
+ */
+function parseSymbols(production) {
+	// Spezialfall: eps
+	if (production === 'eps') {
+		return ['eps'];
+	}
+
+	const symbols = [];
+	let i = 0;
+
+	while (i < production.length) {
+		// Prüfe ob aktuelles Zeichen ein Großbuchstabe ist
+		if (/[A-Z]/.test(production[i])) {
+			let symbol = production[i];
+			i++;
+
+			// Sammle nachfolgende Ziffern
+			while (i < production.length && /\d/.test(production[i])) {
+				symbol += production[i];
+				i++;
+			}
+
+			symbols.push(symbol);
+		} else {
+			// Terminal oder sonstiges Zeichen
+			symbols.push(production[i]);
+			i++;
+		}
+	}
+
+	return symbols;
+}
+
+/**
+ * Erzeugt Varianten einer Produktion, in denen ein bestimmtes Symbol entfernt wurde.
+ * Berücksichtigt alle Positionen des Symbols.
+ */
+function generateVariantsWithoutVariable(production, variable) {
+	const symbols = parseSymbols(production);
+	const positions = [];
+
+	// Finde alle Positionen des zu entfernenden Symbols
+	for (let i = 0; i < symbols.length; i++) {
+		if (symbols[i] === variable) {
+			positions.push(i);
+		}
+	}
+
+	if (positions.length === 0) {
+		return [];
+	}
+
+	const variants = new Set();
+
+	// Generiere alle Teilmengen von Positionen und entferne diese
+	const totalCombinations = 1 << positions.length;
+	for (let mask = 1; mask < totalCombinations; mask++) { // Start bei 1, nicht 0 (nicht alle Vorkommen behalten)
+		const result = [];
+		for (let i = 0; i < symbols.length; i++) {
+			const posIndex = positions.indexOf(i);
+			const shouldRemove = (mask & (1 << posIndex)) !== 0;
+			
+			if (posIndex === -1 || !shouldRemove) {
+				result.push(symbols[i]);
+			}
+		}
+		
+		const variant = result.join('');
+		if (variant.length > 0) {
+			variants.add(variant);
+		}
+	}
+
+	return Array.from(variants);
+}
+
+/**
+ * Formatiert eine Grammatik-Produktionstabelle als Text-String.
+ */
+function formatGrammar(productions, label = '') {
+	const vars = Object.keys(productions).sort((a, b) => a.localeCompare(b));
+	const lines = vars
+		.filter(v => (productions[v] || []).length > 0)
+		.map(v => `${v} → ${productions[v].join(' | ')}`);
+	
+	if (label) {
+		return `${label}:\n${lines.join('\n')}`;
+	}
+	return lines.join('\n');
+}
+
+/**
  * Prueft, ob ein Symbol der CFG ein Terminal ist.
  */
 function isTerminal(symbol) {
@@ -7,233 +102,255 @@ function isTerminal(symbol) {
 
 /**
  * Prueft, ob ein Symbol der CFG ein Nichtterminal ist.
+ * Akzeptiert sowohl einzelne Großbuchstaben (A, B, C) als auch
+ * Großbuchstaben mit Ziffern (S0, A1, X2, etc.).
  */
 function isNonTerminal(symbol) {
-	return /^[A-Z]$/.test(symbol);
-}
-
-/**
- * Erzeugt Varianten einer CFG-Produktion durch Nullable-Entfernung.
- */
-function expandByNullable(production, nullable) {
-	if (production === 'eps') {
-		return [];
-	}
-
-	const symbols = production.split('');
-	const positions = [];
-
-	for (let i = 0; i < symbols.length; i++) {
-		const s = symbols[i];
-		if (isNonTerminal(s) && nullable.has(s)) {
-			positions.push(i);
-		}
-	}
-
-	if (positions.length === 0) {
-		return [production];
-	}
-
-	const results = new Set();
-
-	// Teilmengen-Enumeration ist der zentrale Kniff fuer Nullable-Erweiterung.
-	const total = 1 << positions.length;
-	for (let mask = 0; mask < total; mask++) {
-		const keep = [];
-		for (let i = 0; i < symbols.length; i++) {
-			const posIndex = positions.indexOf(i);
-			if (posIndex === -1) {
-				keep.push(symbols[i]);
-			} else {
-				// Wenn Bit gesetzt -> entferne dieses nullable Symbol
-				const remove = (mask & (1 << posIndex)) !== 0;
-				if (!remove) keep.push(symbols[i]);
-			}
-		}
-		const candidate = keep.join('');
-		if (candidate.length > 0) {
-			results.add(candidate);
-		}
-	}
-
-	return [...results];
-}
-
-/**
- * Berechnet Nullable-Variablen der CFG per Fixpunkt.
- */
-function computeNullableVariables(productions) {
-	const nullable = new Set();
-	const variables = Object.keys(productions);
-
-	for (let i = 0; i < variables.length; i++) {
-		const A = variables[i];
-		const prods = productions[A] || [];
-
-		if (prods.includes('eps')) {
-			nullable.add(A);
-		}
-	}
-
-	let changed = true;
-	while (changed) {
-		changed = false;
-
-		for (let i = 0; i < variables.length; i++) {
-			const A = variables[i];
-
-			if (nullable.has(A)) {
-				continue;
-			}
-
-			const prods = productions[A] || [];
-			const canBeNull = checkIfNullable(prods, nullable);
-
-			if (canBeNull) {
-				nullable.add(A);
-				changed = true;
-			}
-		}
-	}
-
-	return nullable;
-}
-
-/**
- * Prueft, ob eine Variable durch Produktionen nullable sein kann.
- */
-function checkIfNullable(prods, nullable) {
-	for (let i = 0; i < prods.length; i++) {
-		const p = prods[i];
-
-		if (p === 'eps') {
-			return true;
-		}
-
-		const symbols = p.split('');
-		let allNullable = true;
-
-		for (let j = 0; j < symbols.length; j++) {
-			const s = symbols[j];
-
-			if (!isNonTerminal(s) || !nullable.has(s)) {
-				allNullable = false;
-				break;
-			}
-		}
-
-		if (allNullable) {
-			return true;
-		}
-	}
-
-	return false;
+	return /^[A-Z]\d*$/.test(symbol);
 }
 
 /**
  * Erzeugt Schritte zur ε- und Unit-Eliminierung in der CFG.
+ * 
+ * Algorithmus:
+ * 1. Führe neue Startvariable S0 ein mit Regel S0 → S | ε
+ *    Dies garantiert, dass die Startvariable nicht auf der rechten Seite vorkommt
+ * 2. Für jede ε-Regel A → ε (wo A ≠ S0):
+ *    - Entferne die Regel
+ *    - Für jedes Vorkommen von A in Regeln R → uAv: Füge R → uv hinzu
+ *    - Wiederholen, bis alle ε-Regeln eliminiert sind
  */
 export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 	const steps = [];
-	const startSymbol = grammar.startSymbol || 'S';
+	const oldStartSymbol = grammar.startSymbol || 'S';
+	const newStartSymbol = 'S0';
 
 	const productions = cnfGraph && Object.keys(cnfGraph).length > 0
 		? deepCopy(cnfGraph)
 		: deepCopy(grammar.productions || {});
 
-	const directEpsVars = Object.keys(productions).filter(A => (productions[A] || []).includes('eps'));
-	const directEpsProdStrings = directEpsVars.map(A => `${A} -> eps`);
+	// Schritt 1: Neue Startvariable S0 einführen
+	const initialProductions = deepCopy(productions);
+
+	// Überprüfe, ob eps in der ursprünglichen Sprache ist
+	const oldStartEps = (initialProductions[oldStartSymbol] || []).includes('eps');
+
+	// Neue Startvariable mit altem Startsymbol und optional ε
+	const newProductions = deepCopy(initialProductions);
+	newProductions[newStartSymbol] = oldStartEps 
+		? [oldStartSymbol, 'eps'] 
+		: [oldStartSymbol];
+
+	// Aktualisiere die Grammatik
+	grammar.startSymbol = newStartSymbol;
+	grammar.productions[newStartSymbol] = newProductions[newStartSymbol];
 
 	steps.push({
-		id: 'cnf-eps-init',
+		id: 'cnf-eps-intro-start',
 		stage: 'cnf-eps',
-		description: 'Entferne eps: Bestimme zunächst nullable Variablen (eps-Variablen)',
-		delta: { action: 'init' },
-		state: { baseCNFProductions: { ...productions }, completed: false },
+		description: `
+PHASE 1: NEUE STARTVARIABLE EINFÜHREN
+
+
+GRAMMATIK G:
+${formatGrammar(initialProductions, 'G')}
+
+ÄNDERUNG:
+Führe neue Startvariable S0 ein:\n  ${newStartSymbol} → ${newProductions[newStartSymbol].join(' | ')}\n
+Grund: Die Startvariable darf nicht auf der rechten Seite von Produktionen vorkommen.
+
+GRAMMATIK G' (nach S0-Einführung):
+${formatGrammar(newProductions, 'G\'')}\n`,
+		delta: { action: 'intro-new-start', newStart: newStartSymbol, oldStart: oldStartSymbol },
+		state: { 
+			baseCNFProductions: { ...newProductions }, 
+			completed: false, 
+			startSymbol: newStartSymbol 
+		},
 		clearLogs: false,
-		highlightVariables: directEpsVars,
-		highlightVariablesStyle: 'warning',
-		highlightProductions: directEpsProdStrings,
-		cnfGraph: { ...productions }
+		highlightVariables: [newStartSymbol, oldStartSymbol],
+		highlightVariablesStyle: 'productive',
+		highlightProductions: newProductions[newStartSymbol].map(p => `${newStartSymbol} -> ${p}`),
+		cnfGraph: { ...newProductions }
 	});
 
-	const nullable = computeNullableVariables(productions);
+	// Schritt 2: Finde alle ε-Regeln (außer S0 → ε)
+	const nullableVars = new Set();
+	Object.keys(newProductions).forEach(A => {
+		if (A !== newStartSymbol && (newProductions[A] || []).includes('eps')) {
+			nullableVars.add(A);
+		}
+	});
 
-	[...nullable].forEach(V => {
+	let updated = deepCopy(newProductions);
+
+	// NICHT hier eps entfernen - wir machen das schrittweise für jede Variable!
+
+	if (nullableVars.size > 0) {
 		steps.push({
-			id: `cnf-eps-nullable-${V}`,
+			id: 'cnf-eps-find',
 			stage: 'cnf-eps',
-			description: `Variable ${V} ist nullable (kann eps erzeugen)`,
-			delta: { action: 'nullable-add', variable: V },
-			state: { baseCNFProductions: { ...productions }, completed: false },
+			description: `
+PHASE 2: ε-REGELN IDENTIFIZIEREN
+
+
+Folgende Variablen können ε ableiten:
+${Array.from(nullableVars).map(v => `  ${v} → ε`).join('\n')}
+
+Diese Regeln müssen eliminiert werden.
+
+GRAMMATIK G' (nach Einführung von S0):
+${formatGrammar(newProductions, 'G\'')}\n`,
+			delta: { action: 'find-epsilon-rules' },
+			state: { 
+				baseCNFProductions: { ...updated }, 
+				completed: false,
+				startSymbol: newStartSymbol
+			},
 			clearLogs: false,
-			highlightVariables: [V],
-			highlightVariablesStyle: 'processing',
-			highlightProductions: productions[V]?.includes('eps') ? [`${V} -> eps`] : [],
-			cnfGraph: { ...productions }
+			highlightVariables: Array.from(nullableVars),
+			highlightVariablesStyle: 'warning',
+			highlightProductions: Array.from(nullableVars).map(v => `${v} -> eps`),
+			cnfGraph: { ...newProductions }  // Zeige noch MIT eps-Produktionen
 		});
-	});
+	// Für jede nullable Variable A
+	for (const epsVar of nullableVars) {
+		// Speichere Zustand VORHER für diesen Schritt
+		const beforeElimination = deepCopy(updated);
+					// Sammle alle Regeln, die A auf der rechten Seite enthalten
+			const affectedRules = new Map();
+			Object.keys(updated).forEach(A => {
+				(updated[A] || []).forEach((prod, idx) => {
+					if (prod !== 'eps' && prod.includes(epsVar)) {
+						if (!affectedRules.has(A)) {
+							affectedRules.set(A, []);
+						}
+						affectedRules.get(A).push({ prod, idx });
+					}
+				});
+			});
 
-	steps.push({
-		id: 'cnf-eps-nullable-complete',
-		stage: 'cnf-eps',
-		description: `Nullable Variablen gefunden: {${[...nullable].join(', ')}}`,
-		delta: { action: 'nullable-complete' },
-		state: { baseCNFProductions: { ...productions }, completed: false },
-		clearLogs: false,
-		highlightVariables: [...nullable],
-		highlightVariablesStyle: 'processing',
-		highlightProductions: [],
-		cnfGraph: { ...productions }
-	});
+			// Für jede betroffene Regel, generiere Variante ohne epsVar
+			const rulesToAdd = new Map();
+			const changesPerVariable = new Map();
+			
+			affectedRules.forEach((prodInfos, A) => {
+				if (!rulesToAdd.has(A)) {
+					rulesToAdd.set(A, []);
+				}
+				if (!changesPerVariable.has(A)) {
+					changesPerVariable.set(A, []);
+				}
 
-	const updated = deepCopy(productions);
-	Object.keys(updated).forEach(A => {
-		const prods = updated[A] || [];
-		const expanded = new Set(prods);
-		prods.forEach(p => {
-			const variants = expandByNullable(p, nullable);
-			variants.forEach(v => expanded.add(v));
+				prodInfos.forEach(({ prod }) => {
+					const variants = generateVariantsWithoutVariable(prod, epsVar);
+					variants.forEach(v => {
+						if (v && !rulesToAdd.get(A).includes(v) && v !== 'eps' && !updated[A].includes(v)) {
+							rulesToAdd.get(A).push(v);
+							changesPerVariable.get(A).push({
+								original: prod,
+								added: v
+							});
+						}
+					});
+				});
+			});
+
+			// Füge neue Regeln hinzu
+			rulesToAdd.forEach((newRules, A) => {
+				newRules.forEach(rule => {
+					if (rule && rule !== 'eps' && !updated[A].includes(rule)) {
+						updated[A].push(rule);
+					}
+				});
+			});
+
+			// Jetzt entferne die eps-Produktion von epsVar
+			if (updated[epsVar]) {
+				updated[epsVar] = updated[epsVar].filter(p => p !== 'eps');
+			}
+
+			// Visualisierungs-Schritt für diese Elimination mit VORHER/NACHHER
+			const affectedVarsSorted = Array.from(affectedRules.keys()).sort();
+			
+			let description = `ELIMINIERE: ${epsVar} → ε \n\n`;
+			
+			description += `SCHRITT:\n`;
+			description += `1. Finde alle Produktionen mit ${epsVar} auf der rechten Seite\n`;
+			description += `2. Füge Varianten ohne ${epsVar} hinzu\n`;
+			description += `3. Entferne ${epsVar} → ε\n\n`;
+			
+			affectedVarsSorted.forEach(A => {
+				const changeList = changesPerVariable.get(A) || [];
+				const before = beforeElimination[A] || [];
+				const after = updated[A] || [];
+				
+				description += `VARIABLE ${A}:\n`;
+				description += `  VOR:  ${A} → ${before.join(' | ')}\n`;
+				
+				if (changeList.length > 0) {
+					description += `  ÄNDERUNGEN:\n`;
+					changeList.forEach(({ original, added }) => {
+						description += `    Wegen ${A} → ${original}: füge hinzu ${A} → ${added}\n`;
+					});
+				}
+				
+				description += `  NACH: ${A} → ${after.join(' | ')}\n\n`;
+			});
+			
+			// Zeige auch das Entfernen der eps-Produktion selbst
+			if (beforeElimination[epsVar] && beforeElimination[epsVar].includes('eps')) {
+				description += `ENTFERNE:\n`;
+				description += `  ${epsVar} → ε (gelöscht)\n\n`;
+			}
+			
+			description += `G' NACH ELIMINIERUNG:\n${formatGrammar(updated, '')}`;
+
+			steps.push({
+				id: `cnf-eps-eliminate-${epsVar}`,
+				stage: 'cnf-eps',
+				description,
+				delta: { action: 'eliminate-epsilon', variable: epsVar },
+				state: { 
+					baseCNFProductions: { ...updated }, 
+					completed: false,
+					startSymbol: newStartSymbol
+				},
+				clearLogs: false,
+				highlightVariables: [epsVar, ...affectedVarsSorted],
+				highlightVariablesStyle: 'focus',
+				highlightProductions: affectedVarsSorted.flatMap(A => (updated[A] || []).map(p => `${A} -> ${p}`)),
+				cnfGraph: { ...updated }  // Zeigt NACH Eliminierung (ohne eps für epsVar)
+			});
+		}
+
+		// Nach allen eps-Eliminierungen: Stelle sicher, dass ALLE eps-Produktionen weg sind (außer S0)
+		Object.keys(updated).forEach(A => {
+			if (A !== newStartSymbol) {
+				updated[A] = (updated[A] || []).filter(p => p !== 'eps');
+			}
 		});
-		expanded.delete('eps');
-		updated[A] = [...expanded];
 
+		// Expliziter Schritt nach Eliminierung: S0 -> eps bleibt, andere eps sind weg
 		steps.push({
-			id: `cnf-eps-expand-${A}`,
+			id: 'cnf-eps-after-elimination',
 			stage: 'cnf-eps',
-			description: `Passe Produktionen von ${A} an (entferne nullable Symbole):\n${updated[A].map(v => `${A} -> ${v}`).join('\n')}`,
-			delta: { action: 'expand', variable: A, added: updated[A] },
-			state: { baseCNFProductions: { ...updated }, completed: false },
+			description: `Nach Eliminierung: Nur ${newStartSymbol} -> ε bleibt erhalten (alle anderen ε-Regeln wurden eliminiert)`,
+			delta: { action: 'epsilon-cleanup' },
+			state: { 
+				baseCNFProductions: { ...updated }, 
+				completed: false,
+				startSymbol: newStartSymbol
+			},
 			clearLogs: false,
-			highlightVariables: [A],
-			highlightVariablesStyle: 'focus',
-			highlightProductions: updated[A].map(v => `${A} -> ${v}`),
+			highlightVariables: [newStartSymbol],
+			highlightVariablesStyle: 'productive',
+			highlightProductions: [`${newStartSymbol} -> eps`],
 			cnfGraph: { ...updated }
 		});
-	});
+	}
 
-	const removedEpsProdStrings = [];
-	Object.keys(updated).forEach(A => {
-		(updated[A] || []).forEach(p => { if (p === 'eps') removedEpsProdStrings.push(`${A} -> eps`); });
-	});
-
-	Object.keys(updated).forEach(A => {
-		updated[A] = (updated[A] || []).filter(p => p !== 'eps');
-	});
-
-	steps.push({
-		id: 'cnf-eps-remove',
-		stage: 'cnf-eps',
-		description: 'Entferne alle eps-Produktionen aus dem Graphen',
-		delta: { action: 'remove-eps' },
-		state: { baseCNFProductions: { ...updated }, completed: false },
-		clearLogs: false,
-		highlightVariables: [...nullable],
-		highlightVariablesStyle: 'warning',
-		highlightProductions: removedEpsProdStrings.length > 0 ? removedEpsProdStrings : Object.keys(updated).flatMap(A => (updated[A] || []).map(p => `${A} -> ${p}`)),
-		cnfGraph: { ...updated }
-	});
-
+	// Finale Zusammenfassung
 	const varsSorted = Object.keys(updated).sort((a, b) => a.localeCompare(b));
 	const grammarLines = buildGrammarLines(updated, varsSorted);
 	const finalProductions = buildProductionStrings(updated, varsSorted);
@@ -241,9 +358,13 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 	steps.push({
 		id: 'cnf-eps-complete',
 		stage: 'cnf-eps',
-		description: `eps-Eliminierung abgeschlossen. Neue Grammatik G'':\n${grammarLines}`,
+		description: `ε-Eliminierung abgeschlossen. Neue Grammatik G'':\n${grammarLines}`,
 		delta: { action: 'complete' },
-		state: { baseCNFProductions: { ...updated }, completed: true },
+		state: { 
+			baseCNFProductions: { ...updated }, 
+			completed: true,
+			startSymbol: newStartSymbol
+		},
 		clearLogs: false,
 		highlightVariables: varsSorted.filter(v => (updated[v] || []).length > 0),
 		highlightVariablesStyle: 'productive',
@@ -251,9 +372,14 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 		cnfGraph: { ...updated }
 	});
 
-	// Unit-Eliminierung folgt als zweiter Teil des Schritts.
+	// Aktualisiere die Grammatik mit den finalen Produktionen
+	grammar.productions = updated;
 
-	// Unit-Closure ist der zentrale Schritt fuer die Ableitung nichtterminaler Ketten.
+	// ============================================================
+	// Unit-Eliminierung: Entfernung von Produktionen der Form A → B
+	// ============================================================
+
+	// Unit-Closure berechnen: Welche Variablen sind von welchen Variablen erreichbar?
 	const computeUnitClosure = (prods) => {
 		const closure = {};
 		Object.keys(prods).forEach(v => {
@@ -279,7 +405,8 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 
 	const unitClosure = computeUnitClosure(updated);
 
-	const unitProductions = new Map(); // A -> Set of B (für jeden A, welche B gibt es)
+	// Finde alle Unit-Produktionen (A → B, wo B ist eine Variable)
+	const unitProductions = new Map(); // A -> Set of B
 	Object.keys(updated).forEach(A => {
 		(updated[A] || []).forEach(prod => {
 			if (isNonTerminal(prod)) {
@@ -300,9 +427,21 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 		steps.push({
 			id: 'cnf-unit-init',
 			stage: 'cnf-unit',
-			description: 'Folgende Unitproduktionen müssen entfernt werden\n' + allUnitProdStrings.join('\n'),
+			description: `
+PHASE 3: UNIT-PRODUKTIONEN ENTFERNEN (A → B)
+
+
+Alle Unit-Produktionen, die entfernt werden müssen:
+${allUnitProdStrings.join('\n')}
+
+ALGORITHMUS:
+1. Für jede Unit-Produktion X → Y: Übernehme alle Nicht-Unit-Produktionen von Y für X
+2. Lösche dann alle Unit-Produktionen
+
+GRAMMATIK G'' (zum Verarbeiten):
+${formatGrammar(updated, 'G\'\'')}`,
 			delta: { action: 'init' },
-			state: { baseCNFProductions: { ...updated }, completed: false },
+			state: { baseCNFProductions: { ...updated }, completed: false, startSymbol: newStartSymbol },
 			clearLogs: false,
 			highlightVariables: [],
 			highlightVariablesStyle: 'warning',
@@ -312,18 +451,30 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 
 		const unitProcessed = deepCopy(updated);
 		const processedVariables = [];
-
 		const sortedVars = Object.keys(updated).sort();
 
+		// Für jede Variable: Ersetze Unit-Produktionen durch Nicht-Unit-Produktionen
 		sortedVars.forEach(A => {
 			const reachable = unitClosure[A];
 			const toAdd = new Set();
+			const unitProdsForA = [];
+			const productionSources = {};
 
 			[...reachable].forEach(B => {
 				if (B === A) return;
-				(updated[B] || []).forEach(prod => {
+				// WICHTIG: Schaue auf unitProcessed[B], nicht updated[B]!
+				// Damit sehen wir die bereits verarbeiteten Nicht-Unit-Produktionen
+				(unitProcessed[B] || []).forEach(prod => {
 					if (!isNonTerminal(prod) && !toAdd.has(prod)) {
 						toAdd.add(prod);
+						if (!productionSources[B]) productionSources[B] = [];
+						productionSources[B].push(prod);
+					}
+				});
+				// Sammle Unit-Produktionen
+				(updated[A] || []).forEach(prod => {
+					if (isNonTerminal(prod) && prod === B) {
+						unitProdsForA.push(`${A} -> ${B}`);
 					}
 				});
 			});
@@ -341,18 +492,54 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 
 					processedVariables.push(A);
 
-					const currentGrammarLines = processedVariables
-						.map(v => `${v} -> ${unitProcessed[v].join(' | ')}`)
+					// Grammatik VORHER für diese Variable
+					const grammarBefore = processedVariables.slice(0, -1)
+						.map(v => `${v} → ${(updated[v] || []).join(' | ')}`)
+						.concat([`${A} → ${(updated[A] || []).join(' | ')}`])
 						.join('\n');
+
+					// Grammatik NACHHER
+					const grammarAfter = processedVariables
+						.map(v => `${v} → ${unitProcessed[v].join(' | ')}`)
+						.join('\n');
+
+					// Erstelle aussagekräftige Beschreibung mit Vorher/Nachher Format
+					let description = ` BEARBEITE: ${A} \n\n`;
+					
+					description += `G'' VOR BEARBEITUNG:\n`;
+					description += grammarBefore + '\n\n';
+					
+					// Zeige Unit-Produktionen
+					const unitProds = (updated[A] || []).filter(p => isNonTerminal(p));
+					if (unitProds.length > 0) {
+						description += `UNIT-PRODUKTIONEN:\n`;
+						unitProds.forEach(unitVar => {
+							description += `  ${A} → ${unitVar}\n`;
+						});
+						description += `\n`;
+					}
+
+					// Zeige was von erreichbaren Variablen übernommen wird
+					description += `ÜBERNEHME VON:\n`;
+					Object.keys(productionSources).forEach(B => {
+						const prods = productionSources[B];
+						description += `  ${B} → ${prods.join(' | ')}\n`;
+					});
+
+					description += `\nRESULTAT:\n`;
+					description += `  ${A} → ${addedProds.join(' | ')}\n\n`;
+
+					description += `G'' NACH BEARBEITUNG:\n`;
+					description += grammarAfter;
 
 					const allProdsProcessing = buildProductionStrings(unitProcessed);
 
 					steps.push({
 						id: `cnf-unit-process-${A}`,
 						stage: 'cnf-unit',
-						description: `Ausgangsgrammatik G'':\n${grammarLines}\n\nAktuelle Grammatik:\n${currentGrammarLines}`,
+						description,
 						delta: { action: 'process-unit', variable: A },
-						state: { baseCNFProductions: { ...unitProcessed }, completed: false },
+						state: { baseCNFProductions: { ...unitProcessed }, completed: false, startSymbol: newStartSymbol },
 						clearLogs: false,
 						highlightVariables: [A],
 						highlightVariablesStyle: 'focus',
@@ -363,59 +550,54 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 			}
 		});
 
+		// Entferne Unit-Produktionen
 		const finalGrammar = deepCopy(unitProcessed);
-		const unitProdsToRemove = [];
-		Object.keys(unitProcessed).forEach(A => {
-			(unitProcessed[A] || []).forEach(prod => {
-				if (isNonTerminal(prod)) {
-					unitProdsToRemove.push({ source: A, target: prod });
-				}
-			});
+		Object.keys(finalGrammar).forEach(A => {
+			finalGrammar[A] = (finalGrammar[A] || []).filter(prod => !isNonTerminal(prod));
 		});
 
-		unitProdsToRemove.sort((a, b) => {
-			if (a.source !== b.source) return a.source.localeCompare(b.source);
-			return a.target.localeCompare(b.target);
+		// Debug-Step: Zeige Grammatik nach Unit-Filter, VOR Erreichbarkeitsprüfung
+		const debugVarsBeforeReachability = Object.keys(finalGrammar).sort();
+		const debugGrammarBeforeReachability = formatGrammar(finalGrammar, '');
+		
+		steps.push({
+			id: 'cnf-unit-debug-before-reachability',
+			stage: 'cnf-unit',
+			description: `DEBUG: Grammatik nach Unit-Filter, VOR Erreichbarkeitsprüfung:\n\nVariablen: ${debugVarsBeforeReachability.join(', ')}\n\n${debugGrammarBeforeReachability}`,
+			delta: { action: 'debug-before-reachability' },
+			state: { 
+				baseCNFProductions: { ...finalGrammar }, 
+				completed: false,
+				startSymbol: newStartSymbol
+			},
+			clearLogs: false,
+			highlightVariables: debugVarsBeforeReachability,
+			highlightVariablesStyle: 'focus',
+			highlightProductions: buildProductionStrings(finalGrammar, debugVarsBeforeReachability),
+			cnfGraph: { ...finalGrammar }
 		});
 
-		// Hilfsfunktion: Berechne erreichbare Variablen von startSymbol
-		/**
-		 * Entfernt Unit-Produktionen aus der CFG und aktualisiert die Erreichbarkeit.
-		 */
-		const removeUnitProductions = () => {
-			unitProdsToRemove.forEach(({ source: A, target: B }) => {
-				const varsSortedBeforeRemove = Object.keys(finalGrammar).sort((a, b) => a.localeCompare(b));
-				const grammarLinesBeforeRemove = buildGrammarLines(finalGrammar, varsSortedBeforeRemove);
-				const allProdsBeforeRemove = buildProductionStrings(finalGrammar, varsSortedBeforeRemove);
+		// Berechne erreichbare Variablen von der Startvariable
+		const reachableVars = computeReachableVars(finalGrammar, newStartSymbol);
 
-				steps.push({
-					id: `cnf-unit-remove-${A}-to-${B}`,
-					stage: 'cnf-unit',
-					description: `Ausgangsgrammatik G'':\n${grammarLines}\n\nAktuelle Grammatik:\n${grammarLinesBeforeRemove}`,
-					delta: { action: 'remove-unit', fromVar: A, toVar: B },
-					state: { baseCNFProductions: { ...finalGrammar }, completed: false },
-					clearLogs: false,
-					highlightVariables: [A, B],
-					highlightVariablesStyle: 'warning',
-					highlightProductions: allProdsBeforeRemove,
-					cnfGraph: { ...finalGrammar }
-				});
-
-				finalGrammar[A] = (finalGrammar[A] || []).filter(prod => prod !== B);
-
-				const reachableAfterRemoval = computeReachableVars(finalGrammar, startSymbol);
-
-				Object.keys(finalGrammar).forEach(v => {
-					if (!reachableAfterRemoval.has(v)) {
-						delete finalGrammar[v];
-					}
-				});
-			});
-		};
-
-		removeUnitProductions();
-
-		const reachableVars = computeReachableVars(finalGrammar, startSymbol);
+		// Debug-Step: Zeige welche Variablen erreichbar sind
+		const unreachableVars = debugVarsBeforeReachability.filter(v => !reachableVars.has(v));
+		steps.push({
+			id: 'cnf-unit-debug-reachability',
+			stage: 'cnf-unit',
+			description: `DEBUG: Erreichbarkeitsanalyse von ${newStartSymbol}:\n\nErreichbare Variablen: ${Array.from(reachableVars).sort().join(', ')}\nUnerreichbare Variablen (werden entfernt): ${unreachableVars.length > 0 ? unreachableVars.join(', ') : 'keine'}`,
+			delta: { action: 'debug-reachability' },
+			state: { 
+				baseCNFProductions: { ...finalGrammar }, 
+				completed: false,
+				startSymbol: newStartSymbol
+			},
+			clearLogs: false,
+			highlightVariables: Array.from(reachableVars),
+			highlightVariablesStyle: 'productive',
+			highlightProductions: buildProductionStrings(finalGrammar, debugVarsBeforeReachability),
+			cnfGraph: { ...finalGrammar }
+		});
 
 		const cleanedGrammar = {};
 		reachableVars.forEach(v => {
@@ -426,18 +608,46 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 		const grammarLinesCleaned = buildGrammarLines(cleanedGrammar, varsSortedCleaned);
 		const finalProductionsCleaned = buildProductionStrings(cleanedGrammar, varsSortedCleaned);
 
+		// Zeige gelöschte Unit-Produktionen
+		const allUnitProds = [];
+		Object.keys(unitProcessed).forEach(A => {
+			(unitProcessed[A] || []).forEach(prod => {
+				if (isNonTerminal(prod)) {
+					allUnitProds.push(`${A} → ${prod}`);
+				}
+			});
+		});
+
+		let completeDescription = `
+UNIT-PRODUKTION-ELIMINIERUNG ABGESCHLOSSEN
+\n\n`;
+		
+		if (allUnitProds.length > 0) {
+			completeDescription += `GELÖSCHTE UNIT-PRODUKTIONEN:\n`;
+			completeDescription += allUnitProds.join('\n') + '\n\n';
+		}
+		
+		completeDescription += `FINALE GRAMMATIK G''' (nur noch Nicht-Unit-Produktionen):\n`;
+		completeDescription += formatGrammar(cleanedGrammar, 'G\'\'\'');
+
 		steps.push({
 			id: 'cnf-unit-complete',
 			stage: 'cnf-unit',
-			description: `Unit-Produktion-Eliminierung abgeschlossen. Neue Grammatik G''':\n${grammarLinesCleaned}`,
+			description: completeDescription,
 			delta: { action: 'complete' },
-			state: { baseCNFProductions: { ...cleanedGrammar }, completed: true },
+			state: { 
+				baseCNFProductions: { ...cleanedGrammar }, 
+				completed: true,
+				startSymbol: newStartSymbol
+			},
 			clearLogs: false,
 			highlightVariables: varsSortedCleaned,
 			highlightVariablesStyle: 'productive',
 			highlightProductions: finalProductionsCleaned,
 			cnfGraph: { ...cleanedGrammar }
 		});
+
+		grammar.productions = cleanedGrammar;
 	}
 
 	return steps;
@@ -482,7 +692,7 @@ function computeReachableVars(prods, startSym) {
 
 		for (let i = 0; i < prods_v.length; i++) {
 			const prod = prods_v[i];
-			const symbols = prod.split('');
+			const symbols = parseSymbols(prod);
 
 			for (let j = 0; j < symbols.length; j++) {
 				const sym = symbols[j];
