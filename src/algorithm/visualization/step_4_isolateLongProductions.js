@@ -1,4 +1,41 @@
 /**
+ * Parsed eine Produktion in einzelne Symbole und erkennt mehrzeilige Variablen wie S0, A1, usw.
+ * @param {string} production - Die zu parsende Produktion (z.B. "S0AB", "ABc")
+ * @returns {string[]} Array der Symbole (z.B. ["S0", "A", "B"])
+ */
+function parseSymbols(production) {
+	// Spezialfall: eps
+	if (production === 'eps') {
+		return ['eps'];
+	}
+
+	const symbols = [];
+	let i = 0;
+
+	while (i < production.length) {
+		// Prüfe ob aktuelles Zeichen ein Großbuchstabe ist
+		if (/[A-Z]/.test(production[i])) {
+			let symbol = production[i];
+			i++;
+
+			// Sammle nachfolgende Ziffern
+			while (i < production.length && /\d/.test(production[i])) {
+				symbol += production[i];
+				i++;
+			}
+
+			symbols.push(symbol);
+		} else {
+			// Terminal oder sonstiges Zeichen
+			symbols.push(production[i]);
+			i++;
+		}
+	}
+
+	return symbols;
+}
+
+/**
  * Prueft, ob ein Symbol der CFG ein Terminal ist.
  */
 function isTerminal(symbol) {
@@ -7,9 +44,11 @@ function isTerminal(symbol) {
 
 /**
  * Prueft, ob ein Symbol der CFG ein Nichtterminal ist.
+ * Akzeptiert sowohl einzelne Großbuchstaben (A, B, C) als auch
+ * Großbuchstaben mit Ziffern (S0, A1, X2, etc.).
  */
 function isNonTerminal(symbol) {
-	return /^[A-Z]$/.test(symbol);
+	return /^[A-Z]\d*$/.test(symbol);
 }
 
 /**
@@ -21,13 +60,20 @@ function deepCopy(obj) {
 
 /**
  * Sucht vorhandene Terminalvariablen V -> a in der CFG.
+ * Ignoriert die Startvariable, da diese nicht auf rechten Seiten erscheinen darf.
  */
-function buildExistingTerminalMap(productions) {
+function buildExistingTerminalMap(productions, startSymbol) {
 	const map = new Map();
 	const variables = Object.keys(productions);
 
 	for (let i = 0; i < variables.length; i++) {
 		const V = variables[i];
+		
+		// CNF-REGEL: Startvariable darf nicht auf rechten Seiten erscheinen
+		if (V === startSymbol) {
+			continue;
+		}
+		
 		const prods = productions[V] || [];
 
 		for (let j = 0; j < prods.length; j++) {
@@ -68,7 +114,7 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 
 	const originalVars = new Set(Object.keys(grammar.productions || {}));
 	const usedVars = new Set([...originalVars, ...Object.keys(productions)]);
-	const terminalVarMap = buildExistingTerminalMap(productions); // z.B. 'c' -> 'C'
+	const terminalVarMap = buildExistingTerminalMap(productions, startSymbol); // z.B. 'c' -> 'C' (aber nicht S0!)
 
 	const varsSortedInit = Object.keys(productions).sort((a, b) => a.localeCompare(b));
 	const grammarLinesInit = buildGrammarLines(productions, varsSortedInit);
@@ -134,7 +180,7 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 				continue;
 			}
 
-			let symbols = p.split('');
+			let symbols = parseSymbols(p);
 
 			for (let pos = 0; pos < symbols.length; pos++) {
 				const s = symbols[pos];

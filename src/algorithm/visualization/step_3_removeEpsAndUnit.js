@@ -466,6 +466,14 @@ ${formatGrammar(updated, 'G\'\'')}`,
 				// Damit sehen wir die bereits verarbeiteten Nicht-Unit-Produktionen
 				(unitProcessed[B] || []).forEach(prod => {
 					if (!isNonTerminal(prod) && !toAdd.has(prod)) {
+						// CNF-REGEL: S0 darf nicht auf rechten Seiten anderer Variablen vorkommen
+						// Überspringe Produktionen, die S0 enthalten, wenn A != S0
+						const symbols = parseSymbols(prod);
+						if (A !== newStartSymbol && symbols.includes(newStartSymbol)) {
+							// Diese Produktion enthält S0, darf nicht nach A kopiert werden
+							return;
+						}
+						
 						toAdd.add(prod);
 						if (!productionSources[B]) productionSources[B] = [];
 						productionSources[B].push(prod);
@@ -555,6 +563,109 @@ ${formatGrammar(updated, 'G\'\'')}`,
 		Object.keys(finalGrammar).forEach(A => {
 			finalGrammar[A] = (finalGrammar[A] || []).filter(prod => !isNonTerminal(prod));
 		});
+
+		// WICHTIG: Stelle sicher, dass S0 NIEMALS auf rechten Seiten auftaucht (außer in S0 selbst)
+		// Dies ist eine CNF-Anforderung: Die Startvariable darf nicht auf rechten Seiten vorkommen
+		const protectStartSymbol = (grammar, startSym) => {
+			// Verwende nur nicht-rekursive S0-Produktionen (die nicht S0 selbst enthalten)
+			// um Endlosschleifen zu vermeiden
+			const s0Productions = [...(grammar[startSym] || [])]
+				.filter(p => p !== 'eps')
+				.filter(p => !parseSymbols(p).includes(startSym)); // Keine rekursiven Produktionen!
+			
+			if (s0Productions.length === 0) {
+				// Keine nicht-rekursiven Produktionen verfügbar - nichts zu tun
+				return false;
+			}
+			
+			let changed = false;
+			
+			Object.keys(grammar).forEach(A => {
+				if (A === startSym) return; // S0 selbst nicht modifizieren
+				
+				const newProductions = [];
+				(grammar[A] || []).forEach(prod => {
+					const symbols = parseSymbols(prod);
+					
+					// Prüfe ob S0 in dieser Produktion vorkommt
+					if (symbols.includes(startSym)) {
+						changed = true;
+						// Expandiere S0: Ersetze jedes Vorkommen von S0 durch seine Produktionen
+						// Wenn S0 → X | Y hat, und wir A → S0B haben, wird das zu A → XB | YB
+						const expandedProds = expandStartSymbolInProduction(symbols, startSym, s0Productions);
+						expandedProds.forEach(exp => {
+							if (exp && exp !== 'eps' && !newProductions.includes(exp)) {
+								newProductions.push(exp);
+							}
+						});
+					} else {
+						newProductions.push(prod);
+					}
+				});
+				
+				grammar[A] = newProductions;
+			});
+			
+			return changed;
+		};
+
+		// Hilfsfunktion: Expandiere S0 in einer Produktion
+		// Wenn S0 mehrfach vorkommt, erzeugen wir alle Kombinationen
+		const expandStartSymbolInProduction = (symbols, startSym, s0Productions) => {
+			if (!symbols.includes(startSym)) {
+				return [symbols.join('')];
+			}
+			
+			// Sicherheitscheck: Wenn s0Productions leer ist, kann nicht expandiert werden
+			if (s0Productions.length === 0) {
+				return [];
+			}
+			
+			// Einfache einmalige Expansion: Ersetze jedes S0 durch die S0-Produktionen
+			const result = [];
+			
+			s0Productions.forEach(s0Prod => {
+				const s0Symbols = parseSymbols(s0Prod);
+				const newSymbols = [];
+				
+				for (let i = 0; i < symbols.length; i++) {
+					if (symbols[i] === startSym) {
+						// Ersetze S0 durch die Expansion
+						newSymbols.push(...s0Symbols);
+					} else {
+						newSymbols.push(symbols[i]);
+					}
+				}
+				
+				const expanded = newSymbols.join('');
+				if (expanded && expanded !== 'eps') {
+					result.push(expanded);
+				}
+			});
+			
+			return result;
+		};
+
+		const s0WasRemoved = protectStartSymbol(finalGrammar, newStartSymbol);
+		
+		if (s0WasRemoved) {
+			steps.push({
+				id: 'cnf-unit-protect-start',
+				stage: 'cnf-unit',
+				description: `CNF-KORREKTUR: Entferne ${newStartSymbol} von rechten Seiten\n\nDie Startvariable ${newStartSymbol} darf nicht auf rechten Seiten vorkommen.\nAlle Vorkommen wurden durch die Produktionen von ${newStartSymbol} ersetzt.\n\nGrammatik nach Korrektur:\n${formatGrammar(finalGrammar, '')}`,
+				delta: { action: 'protect-start-symbol' },
+				state: { 
+					baseCNFProductions: { ...finalGrammar }, 
+					completed: false,
+					startSymbol: newStartSymbol
+				},
+				clearLogs: false,
+				highlightVariables: [newStartSymbol],
+				highlightVariablesStyle: 'warning',
+				highlightProductions: buildProductionStrings(finalGrammar),
+				cnfGraph: { ...finalGrammar }
+			});
+		}
 
 		// Debug-Step: Zeige Grammatik nach Unit-Filter, VOR Erreichbarkeitsprüfung
 		const debugVarsBeforeReachability = Object.keys(finalGrammar).sort();
