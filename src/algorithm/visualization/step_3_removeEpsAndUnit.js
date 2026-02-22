@@ -375,9 +375,9 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 	// Aktualisiere die Grammatik mit den finalen Produktionen
 	grammar.productions = updated;
 
-	// ============================================================
+	// 
 	// Unit-Eliminierung: Entfernung von Produktionen der Form A → B
-	// ============================================================
+	//
 
 	// Unit-Closure berechnen: Welche Variablen sind von welchen Variablen erreichbar?
 	const computeUnitClosure = (prods) => {
@@ -667,6 +667,8 @@ ${formatGrammar(updated, 'G\'\'')}`,
 			});
 		}
 
+		// DEBUG-AUS: Debug-Steps auskommentiert für saubere Ausgabe
+		/*
 		// Debug-Step: Zeige Grammatik nach Unit-Filter, VOR Erreichbarkeitsprüfung
 		const debugVarsBeforeReachability = Object.keys(finalGrammar).sort();
 		const debugGrammarBeforeReachability = formatGrammar(finalGrammar, '');
@@ -687,12 +689,14 @@ ${formatGrammar(updated, 'G\'\'')}`,
 			highlightProductions: buildProductionStrings(finalGrammar, debugVarsBeforeReachability),
 			cnfGraph: { ...finalGrammar }
 		});
+		*/
 
 		// Berechne erreichbare Variablen von der Startvariable
 		const reachableVars = computeReachableVars(finalGrammar, newStartSymbol);
 
+		/*
 		// Debug-Step: Zeige welche Variablen erreichbar sind
-		const unreachableVars = debugVarsBeforeReachability.filter(v => !reachableVars.has(v));
+		const unreachableVars = Object.keys(finalGrammar).filter(v => !reachableVars.has(v));
 		steps.push({
 			id: 'cnf-unit-debug-reachability',
 			stage: 'cnf-unit',
@@ -706,10 +710,12 @@ ${formatGrammar(updated, 'G\'\'')}`,
 			clearLogs: false,
 			highlightVariables: Array.from(reachableVars),
 			highlightVariablesStyle: 'productive',
-			highlightProductions: buildProductionStrings(finalGrammar, debugVarsBeforeReachability),
+			highlightProductions: buildProductionStrings(finalGrammar, Object.keys(finalGrammar)),
 			cnfGraph: { ...finalGrammar }
 		});
+		*/
 
+		// Behalte nur erreichbare Variablen
 		const cleanedGrammar = {};
 		reachableVars.forEach(v => {
 			cleanedGrammar[v] = finalGrammar[v] || [];
