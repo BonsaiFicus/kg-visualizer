@@ -101,9 +101,7 @@ function buildInitStep(startSymbol, productions, baseCNFProductions, productiveS
 	return {
 		id: 'cnf-init',
 		stage: 'cnf-build',
-		description: `═══════════════════════════════════════════════════
-PHASE 2: CNF-BASIS AUFBAUEN
-═══════════════════════════════════════════════════
+		description: `PHASE 2: CNF-BASIS AUFBAUEN
 
 Starte mit produktiven Variablen aus G:
 
