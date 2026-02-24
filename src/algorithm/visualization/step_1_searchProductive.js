@@ -284,7 +284,8 @@ function addProductiveVariableStep(steps, variable, terminalProductions, initial
 	steps.push({
 		id: `productive-init-${variable}`,
 		stage: "initialization",
-		description: `Variable ${variable} ist produktiv (hat Terminal-Produktionen: ${terminalProductions.join(', ')})`,
+		description: `Variable ${variable} ist produktiv (hat Terminalproduktionen: ${terminalProductions.join(', ')})`,
+
 		delta: {
 			action: 'add',
 			variable: variable,
@@ -310,7 +311,7 @@ function addNonProductiveCheckStep(steps, initiallyCheckedVariables, initialProd
 	steps.push({
 		id: `productive-init-non-productive`,
 		stage: "initialization",
-		description: `Variablen ohne Terminal-Produktionen: ${initiallyCheckedVariables.join(', ')}`,
+		description: `Variablen ohne Terminalproduktionen: ${initiallyCheckedVariables.join(', ')}`,
 		delta: {
 			action: 'check',
 			variables: initiallyCheckedVariables,

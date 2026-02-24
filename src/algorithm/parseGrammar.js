@@ -56,7 +56,7 @@ function parseGrammarLine(line, index) {
 
 	lhs = lhs.replace(/[^A-Z]/g, '');
 	if (lhs === '') {
-		console.warn(`${index + 1} "'${lhs}'" beinhaltet ungültiges nicht-Terminal `);
+		console.warn(`${index + 1} "'${lhs}'" beinhaltet ungültiges Nicht-Terminal `);
 		return null;
 	}
 

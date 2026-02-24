@@ -125,7 +125,7 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 	steps.push({
 		id: 'cnf-long-init',
 		stage: 'cnf-long',
-		description: `Terminals in langen Produktionen isolieren (Übergang zu G₂)\n\nAktuelle Grammatik:\n${grammarLinesInit}`,
+		description: `Terminale in langen Produktionen isolieren (Übergang zu G₂)\n\nAktuelle Grammatik:\n${grammarLinesInit}`,
 		delta: { action: 'init' },
 		state: { baseCNFProductions: deepCopy(productions), completed: false, startSymbol },
 		clearLogs: false,
@@ -242,9 +242,9 @@ TERMINAL-ISOLIERUNG ABGESCHLOSSEN (G'' → G''')
 
 In langen Produktionen (Länge ≥ 2) sind jetzt nur noch:
 - Variablenpaare (AB, X₁X₂, etc.) oder
-- Einzelne Terminals (a, b, c)
+- Einzelne Terminale (a, b, c)
 
-Und alle Terminals sind isoliert in neuen Unit-Produkionen (X → a).
+Und alle Terminale sind isoliert in neuen Unit-Produkionen (X → a).
 
 FINALE GRAMMATIK G''':
 ${grammarLinesFinal}`,

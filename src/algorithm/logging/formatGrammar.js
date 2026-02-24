@@ -11,11 +11,11 @@ export default function formatGrammar(grammar) {
 	}
 
 	if (hasList(grammar.nonTerminals)) {
-		sections.push(`Non-Terminals: ${grammar.nonTerminals.join(', ')}`);
+		sections.push(`Nicht-Terminale: ${grammar.nonTerminals.join(', ')}`);
 	}
 
 	if (hasList(grammar.terminals)) {
-		sections.push(`Terminals: ${grammar.terminals.join(', ')}`);
+		sections.push(`Terminale: ${grammar.terminals.join(', ')}`);
 	}
 
 	sections.push(buildProductionLines(grammar.productions));

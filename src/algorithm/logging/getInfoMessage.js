@@ -46,16 +46,23 @@ export function getStepPopupMessage(currentStep) {
 
 	if (currentStep.stage === 'cnf-build') {
 		if (action === 'init-with-start') return 'Baue CNF-Basis-Graph...';
-		if (action === 'add') return `Füge ${currentStep.delta.variable} hinzu`;
+		if (action === 'add' || action === 'add-variable') return `Füge Variable ${currentStep.delta.variable} hinzu`;
 		if (action === 'complete') return 'CNF-Basis-Graph vollständig!';
 	}
 
 	if (currentStep.stage === 'cnf-ε') {
 		if (action === 'init') return 'ε-Eliminierung: finde ε-Variablen...';
+		if (action === 'intro-new-start') {
+			return `Führe neue Startvariable ${currentStep.delta.newStart} ein`;
+		}
+		if (action === 'find-epsilon-rules') return 'Finde ε-Produktionen...';
 		if (action === 'nullable-add') return `ε-Variable erkannt: ${currentStep.delta.variable}`;
 		if (action === 'nullable-complete') return 'ε-Variablen bestimmt';
 		if (action === 'expand') return `Erweitere Produktionen von ${currentStep.delta.variable}`;
+		if (action === 'eliminate-epsilon') return `Eliminiere ε-Produktion von ${currentStep.delta.variable}`;
 		if (action === 'remove-ε') return 'Entferne ε-Produktionen';
+		if (action === 'epsilon-cleanup') return 'Bereinige ε-Produktionen nach Eliminierung';
+		if (action === 'protect-start-symbol') return `Entferne Startvariable von rechten Seiten`;
 		if (action === 'complete') return 'ε-Eliminierung abgeschlossen!';
 	}
 
@@ -69,12 +76,12 @@ export function getStepPopupMessage(currentStep) {
 	}
 
 	if (currentStep.stage === 'cnf-long') {
-		if (action === 'init') return 'Terminals isolieren in langen Produktionen...';
+		if (action === 'init') return 'Terminale isolieren in langen Produktionen...';
 		if (action === 'create-terminal-var') {
 			return `Führe Variable ${currentStep.delta.variable} für Terminal '${currentStep.delta.terminal}' ein`;
 		}
-		if (action === 'replace-terminal') return `Ersetze Terminals in Produktionen von ${currentStep.delta.variable}`;
-		if (action === 'complete') return 'Isolation der Terminals abgeschlossen!';
+		if (action === 'replace-terminal') return `Ersetze Terminale in Produktionen von ${currentStep.delta.variable}`;
+		if (action === 'complete') return 'Isolation der Terminale abgeschlossen!';
 	}
 
 	if (currentStep.stage === 'cnf-binary') {
