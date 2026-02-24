@@ -5,7 +5,7 @@
   background: #f0f0f0;
 }
 
-@media (max-width: 900px) {
+@media (max-aspect-ratio: 16/9) {
   .canvas-area {
     position: relative;
     height: 420px;
