@@ -68,13 +68,13 @@ function parseGrammarLine(line, index) {
 
 /**
  * Normalisiert RHS-Produktionen einer CFG-Zeile.
- * § wird zu ε konvertiert und als leeres Wort behandelt.
+ * _ wird zu ε konvertiert und als leeres Wort behandelt.
  */
 function normalizeProductions(rhs) {
 	const productions = rhs.split('|').map(prod => prod.trim());
 	const cleanedProductions = productions.map((prod) => {
-		// Konvertiere § zu ε
-		const withEpsilon = prod.replace(/§/g, 'ε');
+		// Konvertiere _ zu ε
+		const withEpsilon = prod.replace(/_/g, 'ε');
 		
 		// Entferne alles außer Buchstaben und ε
 		const cleaned = withEpsilon.replace(/[^a-zA-Zε]/g, '');

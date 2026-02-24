@@ -72,8 +72,8 @@ export default function SidebarLeft({ open, toggleSidebarLeft, onGrammarChange, 
 		const example = `S -> A | B | CD
 A -> B | A | bCb
 B -> S | c
-C -> cC | §
-D -> dD | §`;
+C -> cC | _
+D -> dD | _`;
 		setInput(example);
 		const lineCount = example.split('\n').length;
 		setRows(Math.min(maxRows, Math.max(8, lineCount)));
