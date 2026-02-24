@@ -20,6 +20,7 @@ import generateIsProductiveSteps from './algorithm/visualization/step_1_searchPr
 export default function App() {
     const [sidebarLeftOpen, setSidebarLeftOpen] = useState(true);
     const [sidebarRightOpen, setSidebarRightOpen] = useState(false);
+    const [sidebarRightLocked, setSidebarRightLocked] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [grammar, setGrammar] = useState({});
     const [analyzeFlag, setAnalyzeFlag] = useState(false);
@@ -48,6 +49,13 @@ export default function App() {
             setFooterResetTrigger(prev => prev + 1);
         }
 
+        if (source === 'input' || source === 'example') {
+            setSidebarRightOpen(false);
+            setSidebarRightLocked(true);
+        } else if (source === 'analyze') {
+            setSidebarRightLocked(false);
+        }
+
         if (hasProductions(parsedGrammar)) {
             setGrammar(parsedGrammar);
             const formattedLogs = formatGrammar(parsedGrammar);
@@ -61,6 +69,7 @@ export default function App() {
             }
         } else {
             setSidebarRightOpen(false);
+            setSidebarRightLocked(true);
         }
 
         setInfoMessage(getGrammarChangeMessage(parsedGrammar));
@@ -121,6 +130,7 @@ export default function App() {
      */
     const toggleSidebarRight = () => {
         setSidebarRightOpen(prev => {
+            if (sidebarRightLocked && !prev) return prev;
             const next = !prev;
             if (next && isMobile) setSidebarLeftOpen(false);
             return next;
@@ -139,9 +149,10 @@ export default function App() {
      * Oeffnet die Log-Seitenleiste fuer CFG-Schritte.
      */
     const openSidebarRight = useCallback(() => {
+        if (sidebarRightLocked) return;
         setSidebarRightOpen(true);
         if (isMobile) setSidebarLeftOpen(false);
-    }, [isMobile]);
+    }, [isMobile, sidebarRightLocked]);
 
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 900px)');
@@ -157,7 +168,11 @@ export default function App() {
         return () => mq.removeEventListener('change', handler);
     }, []);
 
-    useEdgeSwipe({ onOpenLeft: openSidebarLeft, onOpenRight: openSidebarRight });
+    useEdgeSwipe({
+        onOpenLeft: openSidebarLeft,
+        onOpenRight: openSidebarRight,
+        enableRight: !sidebarRightLocked,
+    });
 
     /**
      * Nimmt Layoutdaten der CFG-Graphstruktur entgegen.
@@ -231,6 +246,7 @@ export default function App() {
                 <SidebarRight
                     grammar={grammar}
                     open={sidebarRightOpen}
+                    locked={sidebarRightLocked}
                     toggleSidebarRight={toggleSidebarRight}
                     onOpenLogsModal={() => setIsLogsModalOpen(true)}
                     currentLogs={currentLogs}

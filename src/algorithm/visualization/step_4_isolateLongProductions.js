@@ -1,3 +1,5 @@
+import { isEpsilon } from '../parseGrammar.js';
+
 /**
  * Parsed eine Produktion in einzelne Symbole und erkennt mehrzeilige Variablen wie S0, A1, usw.
  * @param {string} production - Die zu parsende Produktion (z.B. "S0AB", "ABc")
@@ -5,8 +7,8 @@
  */
 function parseSymbols(production) {
 	// Spezialfall: eps
-	if (production === 'eps') {
-		return ['eps'];
+	if (isEpsilon(production)) {
+		return ['ε'];
 	}
 
 	const symbols = [];
@@ -176,7 +178,7 @@ export default function generateIsolateLongSteps(grammar, cnfGraph) {
 			let prevProd = p; // vor jeder Ersetzung die vorherige Produktion merken
 
 			// Überspringe eps und Produktionen mit Länge < 2
-			if (p === 'eps' || p.length < 2) {
+			if (isEpsilon(p) || p.length < 2) {
 				continue;
 			}
 

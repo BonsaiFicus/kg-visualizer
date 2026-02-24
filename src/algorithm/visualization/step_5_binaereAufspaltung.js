@@ -1,12 +1,14 @@
+import { isEpsilon } from '../parseGrammar.js';
+
 /**
  * Parsed eine Produktion in einzelne Symbole und erkennt mehrzeilige Variablen wie S0, A1, usw.
  * @param {string} production - Die zu parsende Produktion (z.B. "S0AB", "ABc")
  * @returns {string[]} Array der Symbole (z.B. ["S0", "A", "B"])
  */
 function parseSymbols(production) {
-	// Spezialfall: eps
-	if (production === 'eps') {
-		return ['eps'];
+	// Spezialfall: ε
+	if (isEpsilon(production)) {
+		return ['ε'];
 	}
 
 	const symbols = [];
@@ -231,8 +233,8 @@ export default function generateBinaryKaskadierungSteps(grammar, cnfGraph) {
 		for (let i = 0; i < prods.length; i++) {
 			const prod = prods[i];
 			
-			// Überspringe eps und Produktionen mit Länge < 3
-			if (prod === 'eps') {
+			// Überspringe ε und Produktionen mit Länge < 3
+			if (isEpsilon(prod)) {
 				continue;
 			}
 			

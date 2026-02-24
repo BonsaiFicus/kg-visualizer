@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 /**
  * Ermoeglicht das Oeffnen der CFG-Seitenleisten per Rand-Geste.
  */
-export default function useEdgeSwipe({ onOpenLeft, onOpenRight }) {
+export default function useEdgeSwipe({ onOpenLeft, onOpenRight, enableRight = true }) {
 	useEffect(() => {
 		let startX = null;
 		let startY = null;
@@ -35,7 +35,7 @@ export default function useEdgeSwipe({ onOpenLeft, onOpenRight }) {
 				if (startX <= EDGE_BUFFER && deltaX > MIN_DELTA && onOpenLeft) {
 					onOpenLeft();
 				}
-				if (startX >= width - EDGE_BUFFER && deltaX < -MIN_DELTA && onOpenRight) {
+				if (enableRight && startX >= width - EDGE_BUFFER && deltaX < -MIN_DELTA && onOpenRight) {
 					onOpenRight();
 				}
 			}
@@ -64,7 +64,7 @@ export default function useEdgeSwipe({ onOpenLeft, onOpenRight }) {
 			window.removeEventListener('pointercancel', cancelTracking);
 			window.removeEventListener('blur', cancelTracking);
 		};
-	}, [onOpenLeft, onOpenRight]);
+	}, [onOpenLeft, onOpenRight, enableRight]);
 }
 
 const EDGE_BUFFER = 24;

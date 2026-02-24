@@ -1,3 +1,5 @@
+import { isEpsilon } from '../parseGrammar.js';
+
 const NODE_RADIUS = 22;
 
 /**
@@ -90,7 +92,7 @@ export function distancePointToSegment(px, py, x1, y1, x2, y2) {
  * Waehlt die Fuellfarbe eines CFG-Knotens.
  */
 function getNodeFillColor(symbol) {
-	if (symbol === 'eps') return '#9C27B0';
+	if (isEpsilon(symbol)) return '#9C27B0';
 	if (symbol === 'S' || symbol === 'S0') return '#ff9900';
 	return '#abababff';
 }
@@ -100,10 +102,10 @@ function getNodeFillColor(symbol) {
  */
 function drawNodeLabel(ctx, symbol, x, y) {
 	ctx.fillStyle = '#000';
-	ctx.font = symbol === 'eps' ? 'italic bold 14px Arial' : 'bold 16px Arial';
+	ctx.font = isEpsilon(symbol) ? 'italic bold 14px Arial' : 'bold 16px Arial';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(symbol === 'eps' ? 'ε' : symbol, x, y);
+	ctx.fillText(symbol, x, y);
 }
 
 /**

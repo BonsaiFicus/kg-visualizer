@@ -1,3 +1,5 @@
+import { isEpsilon } from '../parseGrammar.js';
+
 /**
  * Erzeugt Schritte fuer den Aufbau des CNF-Basisgraphen der CFG.
  */
@@ -68,7 +70,7 @@ function getValidProductions(productions, productiveSet) {
 	for (let i = 0; i < productions.length; i++) {
 		const prod = productions[i];
 
-		if (prod === 'eps') {
+		if (isEpsilon(prod)) {
 			validProductions.push(prod);
 			continue;
 		}
@@ -101,7 +103,7 @@ function buildInitStep(startSymbol, productions, baseCNFProductions, productiveS
 	return {
 		id: 'cnf-init',
 		stage: 'cnf-build',
-		description: `PHASE 2: CNF-BASIS AUFBAUEN
+		description: `PHASE 2: ENDLICHKEITSPROBLEM
 
 Starte mit produktiven Variablen aus G:
 

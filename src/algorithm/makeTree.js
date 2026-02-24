@@ -1,3 +1,5 @@
+import { isEpsilon } from './parseGrammar.js';
+
 /**
  * Erzeugt ein Layout fuer den CFG-Graphen.
  */
@@ -158,7 +160,7 @@ function collectChildSymbols(productions, visited, hasEpsilonProduction, current
 	for (let i = 0; i < productions.length; i++) {
 		const prod = productions[i];
 
-		if (prod === 'eps') {
+		if (isEpsilon(prod)) {
 			hasEpsilonProduction.add(currentSymbol);
 			continue;
 		}
@@ -190,8 +192,8 @@ function maybeAddEpsilonNode({ nodes, nodePositions, hasEpsilonProduction, layou
 	epsX = adjusted.x;
 	epsY = adjusted.y;
 
-	nodes.push({ symbol: 'eps', x: epsX, y: epsY, isTerminal: true });
-	nodePositions.set('eps', { x: epsX, y: epsY });
+	nodes.push({ symbol: 'ε', x: epsX, y: epsY, isTerminal: true });
+	nodePositions.set('ε', { x: epsX, y: epsY });
 }
 
 /**
@@ -225,8 +227,8 @@ function relaxNodeOverlaps(nodes, nodePositions, minDistance) {
 					nodeB.x += pushX;
 					nodeB.y += pushY;
 
-					const keyA = nodeA.symbol === 'eps' ? 'eps' : nodeA.symbol;
-					const keyB = nodeB.symbol === 'eps' ? 'eps' : nodeB.symbol;
+					const keyA = nodeA.symbol === 'ε' ? 'ε' : nodeA.symbol;
+					const keyB = nodeB.symbol === 'ε' ? 'ε' : nodeB.symbol;
 					nodePositions.set(keyA, { x: nodeA.x, y: nodeA.y });
 					nodePositions.set(keyB, { x: nodeB.x, y: nodeB.y });
 				}
@@ -258,7 +260,7 @@ function buildEdges({ grammar, edges, nodePositions }) {
 		for (let i = 0; i < productions.length; i++) {
 			const prod = productions[i];
 
-			if (prod === 'eps') {
+			if (isEpsilon(prod)) {
 				addEpsilonEdge(edges, current, nodePositions);
 				continue;
 			}
@@ -286,9 +288,9 @@ function checkForSelfLoop(productions, symbol) {
  * Fuegt eine Epsilon-Kante zum CFG-Graphen hinzu.
  */
 function addEpsilonEdge(edges, current, nodePositions) {
-	const epsPos = nodePositions.get('eps');
+	const epsPos = nodePositions.get('ε');
 	if (epsPos) {
-		edges.push({ from: current, to: { symbol: 'eps', ...epsPos } });
+		edges.push({ from: current, to: { symbol: 'ε', ...epsPos } });
 	}
 }
 

@@ -28,6 +28,13 @@ export default function parseGrammar(text) {
 };
 
 /**
+ * Prueft, ob ein Production-Symbol das leere Wort darstellt.
+ */
+export function isEpsilon(symbol) {
+	return symbol === 'ε';
+}
+
+/**
  * Erzeugt das Grundgeruest fuer eine CFG.
  */
 function createEmptyGrammar() {
@@ -61,12 +68,29 @@ function parseGrammarLine(line, index) {
 
 /**
  * Normalisiert RHS-Produktionen einer CFG-Zeile.
+ * § wird zu ε konvertiert und als leeres Wort behandelt.
  */
 function normalizeProductions(rhs) {
 	const productions = rhs.split('|').map(prod => prod.trim());
 	const cleanedProductions = productions.map((prod) => {
-		if (prod === 'eps') return 'eps';
-		return prod.replace(/[^a-zA-Z]/g, '');
+		// Konvertiere § zu ε
+		const withEpsilon = prod.replace(/§/g, 'ε');
+		
+		// Entferne alles außer Buchstaben und ε
+		const cleaned = withEpsilon.replace(/[^a-zA-Zε]/g, '');
+		
+		// Wenn nur ε vorhanden: gib ε zurück (Epsilon-Symbol)
+		if (cleaned === 'ε') {
+			return 'ε';
+		}
+		
+		// Wenn ε mit anderen Symbolen gemischt: entferne ε
+		if (cleaned.includes('ε')) {
+			return cleaned.replace(/ε/g, '');
+		}
+		
+		// Ansonsten gib die bereinigte Version zurück
+		return cleaned;
 	});
 
 	return [...new Set(cleanedProductions.filter((part) => part !== ''))];
@@ -100,8 +124,8 @@ function collectSymbols(grammar, productions) {
 	for (let i = 0; i < productions.length; i++) {
 		const prod = productions[i];
 
-		if (prod === 'eps') {
-			grammar.nonTerminals.add('eps');
+		if (prod === 'ε') {
+			grammar.nonTerminals.add('ε');
 			continue;
 		}
 

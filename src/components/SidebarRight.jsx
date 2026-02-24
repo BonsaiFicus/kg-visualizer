@@ -4,12 +4,13 @@ import '../styles/sidebars.css';
 /**
  * Log-Seitenleiste fuer Ausgaben der CFG-Analyse.
  */
-export default function SidebarRight({ grammar, open, toggleSidebarRight, onOpenLogsModal, currentLogs, onCurrentLogsChange }) {
+export default function SidebarRight({ grammar, open, locked, toggleSidebarRight, onOpenLogsModal, currentLogs, onCurrentLogsChange }) {
 	const hasGrammar = grammar && grammar.productions && Object.keys(grammar.productions).length > 0;
+    const canToggle = hasGrammar && !locked;
 
 	return (
 		<div className={`sidebar sidebar-right ${open ? 'open' : 'closed'}`}>
-			{hasGrammar && (
+			{canToggle && (
 				<button
 					className={`sidebar-toggle ${open ? 'toggle-open' : 'toggle-closed'}`}
 					onClick={toggleSidebarRight}

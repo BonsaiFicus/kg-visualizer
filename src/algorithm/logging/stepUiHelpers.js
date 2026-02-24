@@ -1,3 +1,4 @@
+import { isEpsilon } from '../parseGrammar.js';
 import { highlightManager } from '../rendering/highlightElements.js';
 
 /**
@@ -132,7 +133,7 @@ function highlightFocusProductions(currentStep) {
 
 		const fromVar = match[1];
 		const toStr = match[2].trim();
-		const edgeColor = toStr === 'eps' ? 'warning' : 'focus';
+		const edgeColor = isEpsilon(toStr) ? 'warning' : 'focus';
 
 		if (edgeColor === 'warning') {
 			highlightManager.highlightNode(fromVar, 'warning');

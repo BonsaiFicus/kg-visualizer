@@ -1,12 +1,14 @@
+import { isEpsilon } from '../parseGrammar.js';
+
 /**
  * Parsed eine Produktion in einzelne Symbole und erkennt mehrzeilige Variablen wie S0, A1, usw.
  * @param {string} production - Die zu parsende Produktion (z.B. "S0AB", "ABc")
  * @returns {string[]} Array der Symbole (z.B. ["S0", "A", "B"])
  */
 function parseSymbols(production) {
-	// Spezialfall: eps
-	if (production === 'eps') {
-		return ['eps'];
+	// Spezialfall: ε
+	if (isEpsilon(production)) {
+		return ['ε'];
 	}
 
 	const symbols = [];
@@ -132,13 +134,13 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 	// Schritt 1: Neue Startvariable S0 einführen
 	const initialProductions = deepCopy(productions);
 
-	// Überprüfe, ob eps in der ursprünglichen Sprache ist
-	const oldStartEps = (initialProductions[oldStartSymbol] || []).includes('eps');
+	// Überprüfe, ob ε in der ursprünglichen Sprache ist
+	const oldStartEps = (initialProductions[oldStartSymbol] || []).some(p => isEpsilon(p));
 
 	// Neue Startvariable mit altem Startsymbol und optional ε
 	const newProductions = deepCopy(initialProductions);
 	newProductions[newStartSymbol] = oldStartEps 
-		? [oldStartSymbol, 'eps'] 
+		? [oldStartSymbol, 'ε'] 
 		: [oldStartSymbol];
 
 	// Aktualisiere die Grammatik
@@ -146,20 +148,19 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 	grammar.productions[newStartSymbol] = newProductions[newStartSymbol];
 
 	steps.push({
-		id: 'cnf-eps-intro-start',
-		stage: 'cnf-eps',
+		id: 'cnf-ε-intro-start',
+		stage: 'cnf-ε',
 		description: `
-PHASE 1: NEUE STARTVARIABLE EINFÜHREN
+Füge neue Startvariable hinzu:
 
-
-GRAMMATIK G:
+Grammatik G:
 ${formatGrammar(initialProductions, 'G')}
 
-ÄNDERUNG:
+Änderung:
 Führe neue Startvariable S0 ein:\n  ${newStartSymbol} → ${newProductions[newStartSymbol].join(' | ')}\n
 Grund: Die Startvariable darf nicht auf der rechten Seite von Produktionen vorkommen.
 
-GRAMMATIK G' (nach S0-Einführung):
+Grammatik G'' (nach S0-Einführung):
 ${formatGrammar(newProductions, 'G\'')}\n`,
 		delta: { action: 'intro-new-start', newStart: newStartSymbol, oldStart: oldStartSymbol },
 		state: { 
@@ -177,21 +178,21 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 	// Schritt 2: Finde alle ε-Regeln (außer S0 → ε)
 	const nullableVars = new Set();
 	Object.keys(newProductions).forEach(A => {
-		if (A !== newStartSymbol && (newProductions[A] || []).includes('eps')) {
+		if (A !== newStartSymbol && (newProductions[A] || []).some(p => isEpsilon(p))) {
 			nullableVars.add(A);
 		}
 	});
 
 	let updated = deepCopy(newProductions);
 
-	// NICHT hier eps entfernen - wir machen das schrittweise für jede Variable!
+	// NICHT hier ε entfernen - wir machen das schrittweise für jede Variable!
 
 	if (nullableVars.size > 0) {
 		steps.push({
-			id: 'cnf-eps-find',
-			stage: 'cnf-eps',
+			id: 'cnf-ε-find',
+			stage: 'cnf-ε',
 			description: `
-PHASE 2: ε-REGELN IDENTIFIZIEREN
+Beginne ε-Eliminierung.
 
 
 Folgende Variablen können ε ableiten:
@@ -199,7 +200,7 @@ ${Array.from(nullableVars).map(v => `  ${v} → ε`).join('\n')}
 
 Diese Regeln müssen eliminiert werden.
 
-GRAMMATIK G' (nach Einführung von S0):
+Grammatik G' (nach Einführung von S0):
 ${formatGrammar(newProductions, 'G\'')}\n`,
 			delta: { action: 'find-epsilon-rules' },
 			state: { 
@@ -210,8 +211,8 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 			clearLogs: false,
 			highlightVariables: Array.from(nullableVars),
 			highlightVariablesStyle: 'warning',
-			highlightProductions: Array.from(nullableVars).map(v => `${v} -> eps`),
-			cnfGraph: { ...newProductions }  // Zeige noch MIT eps-Produktionen
+			highlightProductions: Array.from(nullableVars).map(v => `${v} -> ε`),
+			cnfGraph: { ...newProductions }  // Zeige noch MIT ε-Produktionen
 		});
 	// Für jede nullable Variable A
 	for (const epsVar of nullableVars) {
@@ -221,7 +222,7 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 			const affectedRules = new Map();
 			Object.keys(updated).forEach(A => {
 				(updated[A] || []).forEach((prod, idx) => {
-					if (prod !== 'eps' && prod.includes(epsVar)) {
+						if (!isEpsilon(prod) && prod.includes(epsVar)) {
 						if (!affectedRules.has(A)) {
 							affectedRules.set(A, []);
 						}
@@ -230,7 +231,7 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 				});
 			});
 
-			// Für jede betroffene Regel, generiere Variante ohne epsVar
+			// Für jede betroffene Regel, generiere Variante ohne ε-Variable
 			const rulesToAdd = new Map();
 			const changesPerVariable = new Map();
 			
@@ -245,7 +246,7 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 				prodInfos.forEach(({ prod }) => {
 					const variants = generateVariantsWithoutVariable(prod, epsVar);
 					variants.forEach(v => {
-						if (v && !rulesToAdd.get(A).includes(v) && v !== 'eps' && !updated[A].includes(v)) {
+							if (v && !rulesToAdd.get(A).includes(v) && !isEpsilon(v) && !updated[A].includes(v)) {
 							rulesToAdd.get(A).push(v);
 							changesPerVariable.get(A).push({
 								original: prod,
@@ -259,23 +260,23 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 			// Füge neue Regeln hinzu
 			rulesToAdd.forEach((newRules, A) => {
 				newRules.forEach(rule => {
-					if (rule && rule !== 'eps' && !updated[A].includes(rule)) {
+						if (rule && !isEpsilon(rule) && !updated[A].includes(rule)) {
 						updated[A].push(rule);
 					}
 				});
 			});
 
-			// Jetzt entferne die eps-Produktion von epsVar
+			// Jetzt entferne die ε-Produktion von epsVar
 			if (updated[epsVar]) {
-				updated[epsVar] = updated[epsVar].filter(p => p !== 'eps');
+				updated[epsVar] = updated[epsVar].filter(p => !isEpsilon(p));
 			}
 
 			// Visualisierungs-Schritt für diese Elimination mit VORHER/NACHHER
 			const affectedVarsSorted = Array.from(affectedRules.keys()).sort();
 			
-			let description = `ELIMINIERE: ${epsVar} → ε \n\n`;
+			let description = `Eliminiere: ${epsVar} → ε \n\n`;
 			
-			description += `SCHRITT:\n`;
+			description += `Schritt:\n`;
 			description += `1. Finde alle Produktionen mit ${epsVar} auf der rechten Seite\n`;
 			description += `2. Füge Varianten ohne ${epsVar} hinzu\n`;
 			description += `3. Entferne ${epsVar} → ε\n\n`;
@@ -285,30 +286,30 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 				const before = beforeElimination[A] || [];
 				const after = updated[A] || [];
 				
-				description += `VARIABLE ${A}:\n`;
-				description += `  VOR:  ${A} → ${before.join(' | ')}\n`;
+				description += `Variable ${A}:\n`;
+				description += `  Vor:  ${A} → ${before.join(' | ')}\n`;
 				
 				if (changeList.length > 0) {
-					description += `  ÄNDERUNGEN:\n`;
+					description += `  Änderungen:\n`;
 					changeList.forEach(({ original, added }) => {
 						description += `    Wegen ${A} → ${original}: füge hinzu ${A} → ${added}\n`;
 					});
 				}
 				
-				description += `  NACH: ${A} → ${after.join(' | ')}\n\n`;
+				description += `  Nach: ${A} → ${after.join(' | ')}\n\n`;
 			});
 			
 			// Zeige auch das Entfernen der eps-Produktion selbst
-			if (beforeElimination[epsVar] && beforeElimination[epsVar].includes('eps')) {
-				description += `ENTFERNE:\n`;
+			if (beforeElimination[epsVar] && beforeElimination[epsVar].some(p => isEpsilon(p))) {
+				description += `Entferne:\n`;
 				description += `  ${epsVar} → ε (gelöscht)\n\n`;
 			}
 			
-			description += `G' NACH ELIMINIERUNG:\n${formatGrammar(updated, '')}`;
+			description += `G' nach Eliminierung:\n${formatGrammar(updated, '')}`;
 
 			steps.push({
-				id: `cnf-eps-eliminate-${epsVar}`,
-				stage: 'cnf-eps',
+				id: `cnf-ε-eliminate-${epsVar}`,
+				stage: 'cnf-ε',
 				description,
 				delta: { action: 'eliminate-epsilon', variable: epsVar },
 				state: { 
@@ -327,14 +328,14 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 		// Nach allen eps-Eliminierungen: Stelle sicher, dass ALLE eps-Produktionen weg sind (außer S0)
 		Object.keys(updated).forEach(A => {
 			if (A !== newStartSymbol) {
-				updated[A] = (updated[A] || []).filter(p => p !== 'eps');
+				updated[A] = (updated[A] || []).filter(p => !isEpsilon(p));
 			}
 		});
 
 		// Expliziter Schritt nach Eliminierung: S0 -> eps bleibt, andere eps sind weg
 		steps.push({
-			id: 'cnf-eps-after-elimination',
-			stage: 'cnf-eps',
+			id: 'cnf-ε-after-elimination',
+			stage: 'cnf-ε',
 			description: `Nach Eliminierung: Nur ${newStartSymbol} -> ε bleibt erhalten (alle anderen ε-Regeln wurden eliminiert)`,
 			delta: { action: 'epsilon-cleanup' },
 			state: { 
@@ -345,7 +346,7 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 			clearLogs: false,
 			highlightVariables: [newStartSymbol],
 			highlightVariablesStyle: 'productive',
-			highlightProductions: [`${newStartSymbol} -> eps`],
+			highlightProductions: [`${newStartSymbol} -> ε`],
 			cnfGraph: { ...updated }
 		});
 	}
@@ -356,8 +357,8 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 	const finalProductions = buildProductionStrings(updated, varsSorted);
 
 	steps.push({
-		id: 'cnf-eps-complete',
-		stage: 'cnf-eps',
+		id: 'cnf-ε-complete',
+		stage: 'cnf-ε',
 		description: `ε-Eliminierung abgeschlossen. Neue Grammatik G'':\n${grammarLines}`,
 		delta: { action: 'complete' },
 		state: { 
@@ -428,18 +429,18 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 			id: 'cnf-unit-init',
 			stage: 'cnf-unit',
 			description: `
-PHASE 3: UNIT-PRODUKTIONEN ENTFERNEN (A → B)
+Starte Eliminierung von Einheitsproduktionen:
 
 
 Alle Unit-Produktionen, die entfernt werden müssen:
 ${allUnitProdStrings.join('\n')}
 
-ALGORITHMUS:
+Algorithmus:
 1. Für jede Unit-Produktion X → Y: Übernehme alle Nicht-Unit-Produktionen von Y für X
 2. Lösche dann alle Unit-Produktionen
 
-GRAMMATIK G'' (zum Verarbeiten):
-${formatGrammar(updated, 'G\'\'')}`,
+Grammatik G'' (zum Verarbeiten):
+	${formatGrammar(updated, 'G\'\'')}`,
 			delta: { action: 'init' },
 			state: { baseCNFProductions: { ...updated }, completed: false, startSymbol: newStartSymbol },
 			clearLogs: false,
@@ -512,15 +513,15 @@ ${formatGrammar(updated, 'G\'\'')}`,
 						.join('\n');
 
 					// Erstelle aussagekräftige Beschreibung mit Vorher/Nachher Format
-					let description = ` BEARBEITE: ${A} \n\n`;
+					let description = `Bearbeite: ${A} \n\n`;
 					
-					description += `G'' VOR BEARBEITUNG:\n`;
+					description += `G'' vor Bearbeitung:\n`;
 					description += grammarBefore + '\n\n';
 					
 					// Zeige Unit-Produktionen
 					const unitProds = (updated[A] || []).filter(p => isNonTerminal(p));
 					if (unitProds.length > 0) {
-						description += `UNIT-PRODUKTIONEN:\n`;
+						description += `Unit-Produktionen:\n`;
 						unitProds.forEach(unitVar => {
 							description += `  ${A} → ${unitVar}\n`;
 						});
@@ -528,16 +529,16 @@ ${formatGrammar(updated, 'G\'\'')}`,
 					}
 
 					// Zeige was von erreichbaren Variablen übernommen wird
-					description += `ÜBERNEHME VON:\n`;
+					description += `Übernehme von:\n`;
 					Object.keys(productionSources).forEach(B => {
 						const prods = productionSources[B];
 						description += `  ${B} → ${prods.join(' | ')}\n`;
 					});
 
-					description += `\nRESULTAT:\n`;
+					description += `\nResultat:\n`;
 					description += `  ${A} → ${addedProds.join(' | ')}\n\n`;
 
-					description += `G'' NACH BEARBEITUNG:\n`;
+					description += `G'' nach Bearbeitung:\n`;
 					description += grammarAfter;
 
 					const allProdsProcessing = buildProductionStrings(unitProcessed);
@@ -570,7 +571,7 @@ ${formatGrammar(updated, 'G\'\'')}`,
 			// Verwende nur nicht-rekursive S0-Produktionen (die nicht S0 selbst enthalten)
 			// um Endlosschleifen zu vermeiden
 			const s0Productions = [...(grammar[startSym] || [])]
-				.filter(p => p !== 'eps')
+				.filter(p => !isEpsilon(p))
 				.filter(p => !parseSymbols(p).includes(startSym)); // Keine rekursiven Produktionen!
 			
 			if (s0Productions.length === 0) {
@@ -594,7 +595,7 @@ ${formatGrammar(updated, 'G\'\'')}`,
 						// Wenn S0 → X | Y hat, und wir A → S0B haben, wird das zu A → XB | YB
 						const expandedProds = expandStartSymbolInProduction(symbols, startSym, s0Productions);
 						expandedProds.forEach(exp => {
-							if (exp && exp !== 'eps' && !newProductions.includes(exp)) {
+							if (exp && !isEpsilon(exp) && !newProductions.includes(exp)) {
 								newProductions.push(exp);
 							}
 						});
@@ -638,7 +639,7 @@ ${formatGrammar(updated, 'G\'\'')}`,
 				}
 				
 				const expanded = newSymbols.join('');
-				if (expanded && expanded !== 'eps') {
+				if (expanded && !isEpsilon(expanded)) {
 					result.push(expanded);
 				}
 			});
@@ -652,7 +653,7 @@ ${formatGrammar(updated, 'G\'\'')}`,
 			steps.push({
 				id: 'cnf-unit-protect-start',
 				stage: 'cnf-unit',
-				description: `CNF-KORREKTUR: Entferne ${newStartSymbol} von rechten Seiten\n\nDie Startvariable ${newStartSymbol} darf nicht auf rechten Seiten vorkommen.\nAlle Vorkommen wurden durch die Produktionen von ${newStartSymbol} ersetzt.\n\nGrammatik nach Korrektur:\n${formatGrammar(finalGrammar, '')}`,
+				description: `CNF-Korrektur: Entferne ${newStartSymbol} von rechten Seiten\n\nDie Startvariable ${newStartSymbol} darf nicht auf rechten Seiten vorkommen.\nAlle Vorkommen wurden durch die Produktionen von ${newStartSymbol} ersetzt.\n\nGrammatik nach Korrektur:\n${formatGrammar(finalGrammar, '')}`,
 				delta: { action: 'protect-start-symbol' },
 				state: { 
 					baseCNFProductions: { ...finalGrammar }, 
@@ -736,15 +737,15 @@ ${formatGrammar(updated, 'G\'\'')}`,
 		});
 
 		let completeDescription = `
-UNIT-PRODUKTION-ELIMINIERUNG ABGESCHLOSSEN
+Unit-Produktion-Eliminierung abgeschlossen
 \n\n`;
 		
 		if (allUnitProds.length > 0) {
-			completeDescription += `GELÖSCHTE UNIT-PRODUKTIONEN:\n`;
+			completeDescription += `Gelöschte Unit-Produktionen:\n`;
 			completeDescription += allUnitProds.join('\n') + '\n\n';
 		}
 		
-		completeDescription += `FINALE GRAMMATIK G''' (nur noch Nicht-Unit-Produktionen):\n`;
+		completeDescription += `Finale Grammatik G''' (nur noch Nicht-Unit-Produktionen):\n`;
 		completeDescription += formatGrammar(cleanedGrammar, 'G\'\'\'');
 
 		steps.push({

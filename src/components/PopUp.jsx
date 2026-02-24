@@ -23,7 +23,7 @@ function parseMessage(text) {
 
 	const parts = [];
 	let lastIndex = 0;
-	const regex = /(NICHT LEER|LEER|ENDLICH|UNENDLICH)/g;
+	const regex = /(nicht leer|leer|endlich|unendlich)/gi;
 	let match;
 
 	while ((match = regex.exec(text)) !== null) {
@@ -31,28 +31,29 @@ function parseMessage(text) {
 			parts.push(text.substring(lastIndex, match.index));
 		}
 
-		if (match[1] === 'NICHT LEER') {
+		const keyword = match[1].toLowerCase();
+		if (keyword === 'nicht leer') {
 			parts.push(
 				<span key={match.index} style={{ color: '#00ff00', fontWeight: 'bold' }}>
-					NICHT LEER
+					nicht leer
 				</span>
 			);
-		} else if (match[1] === 'LEER') {
+		} else if (keyword === 'leer') {
 			parts.push(
 				<span key={match.index} style={{ color: '#FF6B6B', fontWeight: 'bold' }}>
-					LEER
+					leer
 				</span>
 			);
-		} else if (match[1] === 'ENDLICH') {
+		} else if (keyword === 'endlich') {
 			parts.push(
 				<span key={match.index} style={{ color: '#00ff00', fontWeight: 'bold' }}>
-					ENDLICH
+					endlich
 				</span>
 			);
-		} else if (match[1] === 'UNENDLICH') {
+		} else if (keyword === 'unendlich') {
 			parts.push(
 				<span key={match.index} style={{ color: '#FF6B6B', fontWeight: 'bold' }}>
-					UNENDLICH
+					unendlich
 				</span>
 			);
 		}

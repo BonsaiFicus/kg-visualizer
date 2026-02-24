@@ -1,3 +1,5 @@
+import { isEpsilon } from '../parseGrammar.js';
+
 /**
  * Erzeugt Schrittfolgen fuer die Produktivitaet einer CFG.
  */
@@ -5,7 +7,7 @@ export function generateIsProductiveSteps(grammar) {
 	const steps = [];
 	const { productions, nonTerminals, startSymbol = 'S' } = grammar;
 	const reachableSet = getReachableVariables({ productions, startSymbol });
-	const filteredNonTerminals = nonTerminals.filter(nt => isReachable(nt, reachableSet) && nt !== 'eps');
+	const filteredNonTerminals = nonTerminals.filter(nt => isReachable(nt, reachableSet) && !isEpsilon(nt));
 
 	let productiveSet = new Set();
 	let iteration = 0;
@@ -47,7 +49,7 @@ export function computeIsProductive(grammar) {
 	for (let i = 0; i < nonTerminals.length; i++) {
 		const variable = nonTerminals[i];
 
-		if (variable === 'eps') {
+		if (isEpsilon(variable)) {
 			continue;
 		}
 
@@ -66,7 +68,7 @@ export function computeIsProductive(grammar) {
 		for (let i = 0; i < nonTerminals.length; i++) {
 			const variable = nonTerminals[i];
 
-			if (variable === 'eps' || productiveSet.has(variable)) {
+			if (isEpsilon(variable) || productiveSet.has(variable)) {
 				continue;
 			}
 
@@ -151,7 +153,7 @@ function isNonTerminal(symbol) {
  * Prueft, ob eine Produktion nur Terminale der CFG enthaelt.
  */
 function isTerminalOnly(production) {
-	if (production === 'eps') return true;
+	if (isEpsilon(production)) return true;
 	return parseSymbols(production).every(symbol => isTerminal(symbol));
 }
 
@@ -159,7 +161,7 @@ function isTerminalOnly(production) {
  * Prueft, ob eine Produktion in Bezug auf V' produktiv ist.
  */
 function isProductive(production, productiveSet) {
-	if (production === 'eps') return true;
+	if (isEpsilon(production)) return true;
 
 	return parseSymbols(production).every(symbol => {
 		return isTerminal(symbol) || productiveSet.has(symbol);
@@ -214,7 +216,7 @@ function pushInitializationStep(steps) {
 	steps.push({
 		id: `productive-init`,
 		stage: "initialization",
-		description: "Initialisierung: Suche nach Variablen, die direkt zu Terminalen produzieren",
+		description: "PHASE 2: LEERHEITSPROBLEM\n\nStarte Suche nach produktiven Variablen",
 		delta: {
 			action: 'init',
 			productiveVars: new Set(),
@@ -513,8 +515,8 @@ function addResultStep(steps, productiveSet, startSymbol, iteration) {
 		id: `productive-result`,
 		stage: "result",
 		description: isEmptyLanguage
-			? `Sprache ist LEER: Startsymbol ${startSymbol} ∉ V' = {${sortedProductiveVars.join(', ')}}`
-			: `Sprache ist NICHT LEER: Startsymbol ${startSymbol} ∈ V' = {${sortedProductiveVars.join(', ')}}`,
+			? `ERGEBNIS: Sprache ist LEER: \n Startsymbol ${startSymbol} ∉ V' = {${sortedProductiveVars.join(', ')}}`
+			: `ERGEBNIS:Sprache ist NICHT LEER: \n Startsymbol ${startSymbol} ∈ V' = {${sortedProductiveVars.join(', ')}}`,
 		delta: {
 			action: 'complete',
 			isEmptyLanguage: isEmptyLanguage,

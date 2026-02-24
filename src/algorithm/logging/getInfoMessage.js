@@ -41,7 +41,7 @@ export function getStepPopupMessage(currentStep) {
 	}
 
 	if (currentStep.stage === 'result') {
-		return currentStep.state?.isEmptyLanguage ? 'Sprache ist LEER' : 'Sprache ist NICHT LEER';
+		return currentStep.state?.isEmptyLanguage ? 'Sprache ist leer' : 'Sprache ist nicht leer';
 	}
 
 	if (currentStep.stage === 'cnf-build') {
@@ -50,13 +50,13 @@ export function getStepPopupMessage(currentStep) {
 		if (action === 'complete') return 'CNF-Basis-Graph vollständig!';
 	}
 
-	if (currentStep.stage === 'cnf-eps') {
-		if (action === 'init') return 'eps-Eliminierung: finde eps-Variablen...';
-		if (action === 'nullable-add') return `eps-Variable erkannt: ${currentStep.delta.variable}`;
-		if (action === 'nullable-complete') return 'eps-Variablen bestimmt';
+	if (currentStep.stage === 'cnf-ε') {
+		if (action === 'init') return 'ε-Eliminierung: finde ε-Variablen...';
+		if (action === 'nullable-add') return `ε-Variable erkannt: ${currentStep.delta.variable}`;
+		if (action === 'nullable-complete') return 'ε-Variablen bestimmt';
 		if (action === 'expand') return `Erweitere Produktionen von ${currentStep.delta.variable}`;
-		if (action === 'remove-eps') return 'Entferne eps-Produktionen';
-		if (action === 'complete') return 'eps-Eliminierung abgeschlossen!';
+		if (action === 'remove-ε') return 'Entferne ε-Produktionen';
+		if (action === 'complete') return 'ε-Eliminierung abgeschlossen!';
 	}
 
 	if (currentStep.stage === 'cnf-unit') {
@@ -86,7 +86,7 @@ export function getStepPopupMessage(currentStep) {
 		if (action === 'complete') return 'CNF erreicht! Alle Produktionen sind binär.';
 		if (action === 'cycle-step') return getCyclePopupMessage(currentStep.delta.type);
 		if (action === 'result') {
-			return currentStep.delta?.isFinite ? 'Sprache ist ENDLICH' : 'Sprache ist UNENDLICH';
+			return currentStep.delta?.isFinite ? 'Sprache ist endlich' : 'Sprache ist unendlich';
 		}
 	}
 
