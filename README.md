@@ -23,7 +23,7 @@ https://github.com/BonsaiFicus/kg-visualizer
 
 ## Eigeninitiative
 
-Hilf mir gerne dabei, meinen Code zu verbessern und zu erweitern!
+Hilf mir gerne dabei, meinen Code zu verbessern und zu erweitern! Beachte aber, dass die [LICENSE](LIZENZ) in stets drinnen bleibt.
 
 ### Local Development
 
@@ -88,7 +88,7 @@ Diese Applikation ist **100%-client-sided** und bei Nutzung vollkommen sicher:
 
 ## Formalitäten
 
-MIT License - see [LICENSE](LICENSE) file for details
+MIT License - siehe [LICENSE](LIZENZ) für mehr Details
 
 
 
