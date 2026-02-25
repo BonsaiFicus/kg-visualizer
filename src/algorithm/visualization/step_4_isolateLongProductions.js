@@ -92,15 +92,21 @@ function buildExistingTerminalMap(productions, startSymbol) {
 
 /**
  * Waehlt eine freie Hilfsvariable fuer Terminalisolierung.
+ * Nutzt zuerst Großbuchstaben (Z bis A), dann D0, D1, D2, ... (unbegrenzt).
  */
 function allocateNewVariable(usedVars) {
-	// Wahl vom Alphabetende reduziert Namenskonflikte.
+	// Wahl vom Alphabetende reduziert Namenskonflikte
 	const candidates = 'ZYXWVUTSRQPONMLKJIHGFEDCBA'.split('');
 	for (const c of candidates) {
 		if (!usedVars.has(c)) return c;
 	}
-	// Fallback (sollte praktisch nie passieren)
-	return 'Z';
+	
+	// Fallback: Ziffern-Suffix verwenden (D0, D1, D2, ...)
+	let counter = 0;
+	while (usedVars.has(`D${counter}`)) {
+		counter++;
+	}
+	return `D${counter}`;
 }
 
 /**

@@ -178,13 +178,20 @@ function detectCycleWithSteps(productions) {
 
 /**
  * Waehlt eine freie Hilfsvariable fuer die binaere Kaskadierung.
+ * Nutzt zuerst Großbuchstaben (Z bis A), dann D0, D1, D2, ... (unbegrenzt).
  */
 function allocateNewVariable(usedVars) {
 	const candidates = 'ZYXWVUTSRQPONMLKJIHGFEDCBA'.split('');
 	for (const c of candidates) {
 		if (!usedVars.has(c)) return c;
 	}
-	return 'Z';
+	
+	// Fallback: Ziffern-Suffix verwenden (D0, D1, D2, ...)
+	let counter = 0;
+	while (usedVars.has(`D${counter}`)) {
+		counter++;
+	}
+	return `D${counter}`;
 }
 
 /**

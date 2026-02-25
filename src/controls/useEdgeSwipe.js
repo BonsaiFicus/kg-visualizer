@@ -17,6 +17,10 @@ export default function useEdgeSwipe({ onOpenLeft, onOpenRight, enableRight = tr
 
 		const onPointerDown = (e) => {
 			if (!isSupportedPointer(e)) return;
+			
+			// Ignoriere Clicks auf Sidebar-Toggle-Buttons
+			if (e.target && e.target.closest('.sidebar-toggle')) return;
+			
 			const { clientX, clientY } = e;
 			if (!isEdgeStart(clientX, width)) return;
 

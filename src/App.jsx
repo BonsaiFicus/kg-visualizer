@@ -130,7 +130,8 @@ export default function App() {
      */
     const toggleSidebarRight = () => {
         setSidebarRightOpen(prev => {
-            if (sidebarRightLocked && !prev) return prev;
+            // Wenn locked, nicht oeffnen oder schliessen
+            if (sidebarRightLocked) return prev;
             const next = !prev;
             if (next && isMobile) setSidebarLeftOpen(false);
             return next;
