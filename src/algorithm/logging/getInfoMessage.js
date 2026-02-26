@@ -28,6 +28,23 @@ export function getStepPopupMessage(currentStep) {
 
 	const action = currentStep.delta?.action;
 
+	if (currentStep.stage === 'reachability') {
+		if (action === 'init') return 'Starte Erreichbarkeitsanalyse...';
+		if (action === 'identify-unreachable') {
+			const count = currentStep.delta?.unreachableVars?.length || 0;
+			return `${count} unerreichbare Variable(n) gefunden`;
+		}
+		if (action === 'all-reachable') return 'Alle Variablen sind erreichbar';
+		if (action === 'complete') return 'Erreichbarkeitsanalyse abgeschlossen';
+	}
+
+	if (currentStep.stage === 'productive-filter') {
+		if (action === 'remove-invalid-productions') {
+			const count = currentStep.delta?.removedProductions?.length || 0;
+			return `${count} Produktion(en) mit nicht-produktiven Variablen entfernt`;
+		}
+	}
+
 	if (currentStep.stage === 'initialization') {
 		if (action === 'init') return 'Terminalsuche...';
 		if (action === 'add') return `Variable ${currentStep.delta.variable} wird in V' eingefügt`;

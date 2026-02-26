@@ -6,9 +6,8 @@ import { isEpsilon } from '../parseGrammar.js';
 export function generateIsProductiveSteps(grammar) {
 	const steps = [];
 	const { productions, nonTerminals, startSymbol = 'S' } = grammar;
-	const reachableSet = getReachableVariables({ productions, startSymbol });
-	const filteredNonTerminals = nonTerminals.filter(nt => isReachable(nt, reachableSet) && !isEpsilon(nt));
-
+	
+	// PHASE 1: Produktivitätsprüfung
 	let productiveSet = new Set();
 	let iteration = 0;
 
@@ -17,7 +16,7 @@ export function generateIsProductiveSteps(grammar) {
 	const initResult = addInitialProductiveSteps({
 		steps,
 		productions,
-		filteredNonTerminals,
+		filteredNonTerminals: nonTerminals.filter(nt => !isEpsilon(nt)),
 	});
 
 	productiveSet = initResult.productiveSet;
@@ -26,7 +25,7 @@ export function generateIsProductiveSteps(grammar) {
 	const iterationResult = addFixpointSteps({
 		steps,
 		productions,
-		filteredNonTerminals,
+		filteredNonTerminals: nonTerminals.filter(nt => !isEpsilon(nt)),
 		productiveSet,
 		iteration,
 	});
@@ -34,7 +33,46 @@ export function generateIsProductiveSteps(grammar) {
 	productiveSet = iterationResult.productiveSet;
 	iteration = iterationResult.iteration;
 
-	addResultStep(steps, productiveSet, startSymbol, iteration);
+	// PHASE 2: Entfernung von Produktionen mit nicht-produktiven Variablen
+	const productiveProductions = {};
+	const removedProductions = [];
+	
+	productiveSet.forEach(v => {
+		const validProductions = (productions[v] || []).filter(prod => {
+			const symbols = parseSymbols(prod);
+			const isValid = symbols.every(sym => isTerminal(sym) || isEpsilon(sym) || productiveSet.has(sym));
+			if (!isValid) {
+				removedProductions.push({ var: v, prod: prod });
+			}
+			return isValid;
+		});
+		if (validProductions.length > 0) {
+			productiveProductions[v] = validProductions;
+		}
+	});
+	
+	// Zeige entfernte Produktionen als expliziten Schritt
+	if (removedProductions.length > 0) {
+		addRemovedProductionsStep(steps, productions, productiveSet, removedProductions, productiveProductions);
+	}
+
+	// PHASE 3: Erreichbarkeitsanalyse (Trimming)
+	// Erreichbarkeit auf der gefilterten Grammatik berechnen
+	const reachableSet = getReachableVariables({ productions: productiveProductions, startSymbol });
+	const productiveAndUnreachable = Array.from(productiveSet).filter(v => !reachableSet.has(v));
+	
+	// Zeige Erreichbarkeitsanalyse nach Produktivitätsprüfung
+	if (productiveAndUnreachable.length > 0) {
+		addReachabilitySteps(steps, productiveProductions, productiveSet, startSymbol, reachableSet, productiveAndUnreachable);
+	} else {
+		addNoUnreachableStep(steps, productiveProductions, productiveSet, startSymbol);
+	}
+	
+	// Nur Variablen, die sowohl produktiv ALS AUCH erreichbar sind
+	const finalProductiveSet = new Set([...productiveSet].filter(v => reachableSet.has(v)));
+
+	// PHASE 3: Leerheitscheck
+	addResultStep(steps, finalProductiveSet, startSymbol, iteration);
 
 	return steps;
 }
@@ -210,13 +248,148 @@ function isReachable(symbol, reachableSet) {
 }
 
 /**
+ * Fuegt Schritt fuer Entfernung von Produktionen mit nicht-produktiven Variablen hinzu.
+ */
+function addRemovedProductionsStep(steps, productions, productiveSet, removedProductions, productiveProductions) {
+	const formatProduction = (v, prod) => `${v} → ${prod}`;
+	const removedList = removedProductions.map(({var: v, prod}) => formatProduction(v, prod));
+	
+	const productiveList = Array.from(productiveSet).sort().join(', ');
+	
+	steps.push({
+		id: 'productive-remove-invalid',
+		stage: 'productive-filter',
+		description: `Entfernung von Produktionen mit nicht-produktiven Variablen:\n\nProduktive Variablen V' = {${productiveList}}\n\nProduktionen mit nicht-produktiven Variablen (werden entfernt):\n  ${removedList.join('\n  ')}\n\nGrund: Diese Produktionen enthalten mindestens eine Variable, die nicht produktiv ist.`,
+		delta: { 
+			action: 'remove-invalid-productions',
+			removedProductions: removedProductions
+		},
+		state: { 
+			productiveVars: new Set(productiveSet),
+			completed: false
+		},
+		clearLogs: false,
+		highlightVariables: [],
+		highlightVariablesStyle: 'warning',
+		highlightProductions: removedList
+	});
+}
+
+/**
+ * Fuegt Schritte fuer die Erreichbarkeitsanalyse hinzu.
+ */
+function addReachabilitySteps(steps, productions, productiveSet, startSymbol, reachableSet, unreachableVars) {
+	// Formatiere die Grammatik für die Anzeige
+	const formatGrammar = (prods, vars, title = '') => {
+		const sortedVars = Array.from(vars).sort();
+		const lines = sortedVars
+			.filter(v => prods[v] && prods[v].length > 0)
+			.map(v => `${v} → ${prods[v].join(' | ')}`);
+		return title ? `${title}:\n${lines.join('\n')}` : lines.join('\n');
+	};
+
+	// Schritt 1: Zeige verbleibende Variablen vor Erreichbarkeitsprüfung
+	const productiveVars = Array.from(productiveSet).sort();
+	steps.push({
+		id: 'reachability-init',
+		stage: 'reachability',
+		description: `PHASE 3: ERREICHBARKEITSANALYSE (Trimming)\n\nVerbleibende produktive Variablen V':\n  ${productiveVars.join(', ')}\n\nStartsymbol: ${startSymbol}\n\nPrüfe, welche dieser produktiven Variablen vom Startsymbol erreichbar sind...`,
+		delta: { action: 'init' },
+		state: { 
+			reachableVars: new Set([startSymbol]), 
+			completed: false 
+		},
+		clearLogs: false,
+		highlightVariables: [startSymbol],
+		highlightVariablesStyle: 'productive',
+		highlightProductions: []
+	});
+
+	// Schritt 2: Zeige erreichbare vs. unerreichbare produktive Variablen
+	const reachableAndProductive = productiveVars.filter(v => reachableSet.has(v));
+	steps.push({
+		id: 'reachability-analysis',
+		stage: 'reachability',
+		description: `Erreichbarkeitsanalyse abgeschlossen:\n\nProduktive UND erreichbare Variablen (von ${startSymbol} aus):\n  ${reachableAndProductive.join(', ')}\n\nProduktive ABER unerreichbare Variablen (werden entfernt):\n  ${unreachableVars.join(', ')}\n\nDiese Variablen sind zwar produktiv, können aber nie in einer Ableitung vorkommen.`,
+		delta: { 
+			action: 'identify-unreachable',
+			unreachableVars: unreachableVars
+		},
+		state: { 
+			reachableVars: reachableSet,
+			unreachableVars: new Set(unreachableVars),
+			completed: false 
+		},
+		clearLogs: false,
+		highlightVariables: [...reachableAndProductive],
+		highlightVariablesStyle: 'productive',
+		highlightProductions: []
+	});
+
+	// Schritt 3: Zeige finale bereinigte Grammatik
+	const finalProductiveSet = new Set(reachableAndProductive);
+
+	steps.push({
+		id: 'reachability-complete',
+		stage: 'reachability',
+		description: `Bereinigte Grammatik G'' (produktiv UND erreichbar):\n\n${formatGrammar(productions, finalProductiveSet, 'G\'\'')}\n\n${unreachableVars.length} Variable(n) wurden als unerreichbar entfernt: ${unreachableVars.join(', ')}\n\nFahre fort mit Leerheitscheck...`,
+		delta: { 
+			action: 'complete',
+			removedCount: unreachableVars.length
+		},
+		state: { 
+			reachableVars: reachableSet,
+			unreachableVars: new Set(unreachableVars),
+			completed: true 
+		},
+		clearLogs: false,
+		highlightVariables: reachableAndProductive,
+		highlightVariablesStyle: 'productive',
+		highlightProductions: []
+	});
+}
+
+/**
+ * Fuegt Schritt hinzu, wenn keine unerreichbaren Variablen gefunden wurden.
+ */
+function addNoUnreachableStep(steps, productions, productiveSet, startSymbol) {
+	const formatGrammar = (prods, vars) => {
+		const sortedVars = Array.from(vars).sort();
+		const lines = sortedVars
+			.filter(v => prods[v] && prods[v].length > 0)
+			.map(v => `${v} → ${prods[v].join(' | ')}`);
+		return lines.join('\n');
+	};
+
+	const productiveVars = Array.from(productiveSet).sort();
+
+	steps.push({
+		id: 'reachability-all-reachable',
+		stage: 'reachability',
+		description: `PHASE 3: ERREICHBARKEITSANALYSE (Trimming)\n\nVerbleibende produktive Variablen V':\n  ${productiveVars.join(', ')}\n\nErgebnis: Alle verbleibenden produktiven Variablen sind vom Startsymbol ${startSymbol} erreichbar.\n✓ Keine unerreichbaren Variablen gefunden.\n\nFahre fort mit Leerheitscheck...`,
+		delta: { 
+			action: 'all-reachable'
+		},
+		state: { 
+			reachableVars: new Set(productiveVars),
+			unreachableVars: new Set(),
+			completed: true 
+		},
+		clearLogs: false,
+		highlightVariables: productiveVars,
+		highlightVariablesStyle: 'productive',
+		highlightProductions: []
+	});
+}
+
+/**
  * Fuegt den Initialschritt fuer die Produktivitaetsanalyse hinzu.
  */
 function pushInitializationStep(steps) {
 	steps.push({
 		id: `productive-init`,
 		stage: "initialization",
-		description: "PHASE 2: LEERHEITSPROBLEM\n\nStarte Suche nach produktiven Variablen",
+		description: "PHASE 1: PRODUKTIVITÄTSPRÜFUNG\n\nStarte Suche nach produktiven Variablen",
 		delta: {
 			action: 'init',
 			productiveVars: new Set(),
@@ -510,14 +683,14 @@ function addIterationContinueStep(steps, productiveSet, iteration) {
  */
 function addResultStep(steps, productiveSet, startSymbol, iteration) {
 	const isEmptyLanguage = !productiveSet.has(startSymbol);
-	const sortedProductiveVars = [startSymbol, ...([...productiveSet].filter(v => v !== startSymbol).sort())];
+	const sortedProductiveVars = [...productiveSet].sort();
 
 	steps.push({
 		id: `productive-result`,
 		stage: "result",
 		description: isEmptyLanguage
-			? `ERGEBNIS: Sprache ist LEER: \n Startsymbol ${startSymbol} ∉ V' = {${sortedProductiveVars.join(', ')}}`
-			: `ERGEBNIS:Sprache ist NICHT LEER: \n Startsymbol ${startSymbol} ∈ V' = {${sortedProductiveVars.join(', ')}}`,
+			? `PHASE 4: LEERHEITSPROBLEM\n\nFinal: Variablen die produktiv UND erreichbar sind:\nV'' = {${sortedProductiveVars.join(', ')}}\n\nERGEBNIS: Sprache ist LEER\nStartsymbol ${startSymbol} ∉ V''\n\nDie Grammatik erzeugt keine Wörter.`
+			: `PHASE 4: LEERHEITSPROBLEM\n\nFinal: Variablen die produktiv UND erreichbar sind:\nV'' = {${sortedProductiveVars.join(', ')}}\n\nERGEBNIS: Sprache ist NICHT LEER\nStartsymbol ${startSymbol} ∈ V''\n\nDie Grammatik erzeugt mindestens ein Wort.`,
 		delta: {
 			action: 'complete',
 			isEmptyLanguage: isEmptyLanguage,

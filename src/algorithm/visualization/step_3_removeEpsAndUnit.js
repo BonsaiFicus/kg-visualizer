@@ -692,44 +692,18 @@ Grammatik G'' (zum Verarbeiten):
 		});
 		*/
 
-		// Berechne erreichbare Variablen von der Startvariable
-		const reachableVars = computeReachableVars(finalGrammar, newStartSymbol);
+		// ε-Eliminierung und Unit-Eliminierung sind abgeschlossen
+		// Erreichbarkeitsanalyse wurde bereits in Step 1 durchgeführt (Phase 2)
+		// Hier verwenden wir die bereits bereinigte Grammatik ohne zusätzliches Trimming
 
-		/*
-		// Debug-Step: Zeige welche Variablen erreichbar sind
-		const unreachableVars = Object.keys(finalGrammar).filter(v => !reachableVars.has(v));
-		steps.push({
-			id: 'cnf-unit-debug-reachability',
-			stage: 'cnf-unit',
-			description: `DEBUG: Erreichbarkeitsanalyse von ${newStartSymbol}:\n\nErreichbare Variablen: ${Array.from(reachableVars).sort().join(', ')}\nUnerreichbare Variablen (werden entfernt): ${unreachableVars.length > 0 ? unreachableVars.join(', ') : 'keine'}`,
-			delta: { action: 'debug-reachability' },
-			state: { 
-				baseCNFProductions: { ...finalGrammar }, 
-				completed: false,
-				startSymbol: newStartSymbol
-			},
-			clearLogs: false,
-			highlightVariables: Array.from(reachableVars),
-			highlightVariablesStyle: 'productive',
-			highlightProductions: buildProductionStrings(finalGrammar, Object.keys(finalGrammar)),
-			cnfGraph: { ...finalGrammar }
-		});
-		*/
-
-		// Behalte nur erreichbare Variablen
-		const cleanedGrammar = {};
-		reachableVars.forEach(v => {
-			cleanedGrammar[v] = finalGrammar[v] || [];
-		});
-
-		const varsSortedCleaned = Array.from(reachableVars).sort((a, b) => a.localeCompare(b));
-		const grammarLinesCleaned = buildGrammarLines(cleanedGrammar, varsSortedCleaned);
-		const finalProductionsCleaned = buildProductionStrings(cleanedGrammar, varsSortedCleaned);
+		const varsSortedCleaned = Object.keys(finalGrammar).filter(v => finalGrammar[v] && finalGrammar[v].length > 0).sort((a, b) => a.localeCompare(b));
+		const grammarLinesCleaned = buildGrammarLines(finalGrammar, varsSortedCleaned);
+		const finalProductionsCleaned = buildProductionStrings(finalGrammar, varsSortedCleaned);
 
 		// Zeige gelöschte Unit-Produktionen
 		const allUnitProds = [];
-		Object.keys(unitProcessed).forEach(A => {
-			(unitProcessed[A] || []).forEach(prod => {
+		Object.keys(finalGrammar).forEach(A => {
+			(finalGrammar[A] || []).forEach(prod => {
 				if (isNonTerminal(prod)) {
 					allUnitProds.push(`${A} → ${prod}`);
 				}
@@ -746,7 +720,7 @@ Unit-Produktion-Eliminierung abgeschlossen
 		}
 		
 		completeDescription += `Finale Grammatik G''' (nur noch Nicht-Unit-Produktionen):\n`;
-		completeDescription += formatGrammar(cleanedGrammar, 'G\'\'\'');
+		completeDescription += formatGrammar(finalGrammar, 'G\'\'\'');
 
 		steps.push({
 			id: 'cnf-unit-complete',
@@ -754,7 +728,7 @@ Unit-Produktion-Eliminierung abgeschlossen
 			description: completeDescription,
 			delta: { action: 'complete' },
 			state: { 
-				baseCNFProductions: { ...cleanedGrammar }, 
+				baseCNFProductions: { ...finalGrammar }, 
 				completed: true,
 				startSymbol: newStartSymbol
 			},
@@ -762,10 +736,10 @@ Unit-Produktion-Eliminierung abgeschlossen
 			highlightVariables: varsSortedCleaned,
 			highlightVariablesStyle: 'productive',
 			highlightProductions: finalProductionsCleaned,
-			cnfGraph: { ...cleanedGrammar }
+			cnfGraph: { ...finalGrammar }
 		});
 
-		grammar.productions = cleanedGrammar;
+		grammar.productions = finalGrammar;
 	}
 
 	return steps;
@@ -799,8 +773,10 @@ function buildProductionStrings(productions, vars = Object.keys(productions).sor
 
 /**
  * Berechnet erreichbare Variablen der CFG ab dem Startsymbol.
+ * HINWEIS: Diese Funktion ist veraltet - Erreichbarkeitsanalyse findet jetzt in Phase 2 von Step 1 statt.
  */
 function computeReachableVars(prods, startSym) {
+	// Direkter Hinweis: Diese Funktion wird nicht mehr verwendet
 	const reachable = new Set([startSym]);
 	const queue = [startSym];
 
