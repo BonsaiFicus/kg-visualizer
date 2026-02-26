@@ -692,18 +692,21 @@ Grammatik G'' (zum Verarbeiten):
 		});
 		*/
 
-		// ε-Eliminierung und Unit-Eliminierung sind abgeschlossen
-		// Erreichbarkeitsanalyse wurde bereits in Step 1 durchgeführt (Phase 2)
-		// Hier verwenden wir die bereits bereinigte Grammatik ohne zusätzliches Trimming
+		// Erreichbarkeit nach Unit-Eliminierung: entferne unerreichbare Variablen
+		const reachableVars = computeReachableVars(finalGrammar, newStartSymbol);
+		const cleanedGrammar = {};
+		reachableVars.forEach(v => {
+			cleanedGrammar[v] = finalGrammar[v] || [];
+		});
 
-		const varsSortedCleaned = Object.keys(finalGrammar).filter(v => finalGrammar[v] && finalGrammar[v].length > 0).sort((a, b) => a.localeCompare(b));
-		const grammarLinesCleaned = buildGrammarLines(finalGrammar, varsSortedCleaned);
-		const finalProductionsCleaned = buildProductionStrings(finalGrammar, varsSortedCleaned);
+		const varsSortedCleaned = Array.from(reachableVars).sort((a, b) => a.localeCompare(b));
+		const grammarLinesCleaned = buildGrammarLines(cleanedGrammar, varsSortedCleaned);
+		const finalProductionsCleaned = buildProductionStrings(cleanedGrammar, varsSortedCleaned);
 
 		// Zeige gelöschte Unit-Produktionen
 		const allUnitProds = [];
-		Object.keys(finalGrammar).forEach(A => {
-			(finalGrammar[A] || []).forEach(prod => {
+		Object.keys(cleanedGrammar).forEach(A => {
+			(cleanedGrammar[A] || []).forEach(prod => {
 				if (isNonTerminal(prod)) {
 					allUnitProds.push(`${A} → ${prod}`);
 				}
@@ -720,7 +723,7 @@ Unit-Produktion-Eliminierung abgeschlossen
 		}
 		
 		completeDescription += `Finale Grammatik G''' (nur noch Nicht-Unit-Produktionen):\n`;
-		completeDescription += formatGrammar(finalGrammar, 'G\'\'\'');
+		completeDescription += formatGrammar(cleanedGrammar, 'G\'\'\'');
 
 		steps.push({
 			id: 'cnf-unit-complete',
@@ -728,7 +731,7 @@ Unit-Produktion-Eliminierung abgeschlossen
 			description: completeDescription,
 			delta: { action: 'complete' },
 			state: { 
-				baseCNFProductions: { ...finalGrammar }, 
+				baseCNFProductions: { ...cleanedGrammar }, 
 				completed: true,
 				startSymbol: newStartSymbol
 			},
@@ -736,10 +739,10 @@ Unit-Produktion-Eliminierung abgeschlossen
 			highlightVariables: varsSortedCleaned,
 			highlightVariablesStyle: 'productive',
 			highlightProductions: finalProductionsCleaned,
-			cnfGraph: { ...finalGrammar }
+			cnfGraph: { ...cleanedGrammar }
 		});
 
-		grammar.productions = finalGrammar;
+			grammar.productions = cleanedGrammar;
 	}
 
 	return steps;
