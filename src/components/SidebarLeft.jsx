@@ -117,6 +117,17 @@ D -> dD | _`;
  */
 function buildAllSteps(parsed) {
 	const productiveSteps = generateIsProductiveSteps(parsed);
+	const isEmptyLanguage = getLastIsEmptyLanguage(productiveSteps);
+	
+	// Wenn die Sprache leer ist, beende hier und zeige nur das LEERHEITSPROBLEM
+	if (isEmptyLanguage) {
+		const finalStep = productiveSteps[productiveSteps.length - 1];
+		if (finalStep) {
+			finalStep.description += `\n\nDa die Startvariable nicht produktiv ist, ist L(G) = ∅ (leer).\nDie Sprache enthält 0 Wörter und ist daher endlich.\nWeiterführung der CNF-Minimierung entfällt.`;
+		}
+		return productiveSteps;
+	}
+	
 	const productiveVars = getLastProductiveVars(productiveSteps);
 
 	const cnfSteps = generateCNFBuildSteps(parsed, productiveVars);
@@ -133,6 +144,14 @@ function buildAllSteps(parsed) {
 	const binaryKaskadierungSteps = generateBinaryKaskadierungSteps(parsed, cnfAfterLong);
 
 	return [...productiveSteps, ...cnfSteps, ...epsSteps, ...longSteps, ...binaryKaskadierungSteps];
+}
+
+/**
+ * Extrahiert den isEmptyLanguage-Status aus dem letzten CFG-Step.
+ */
+function getLastIsEmptyLanguage(steps) {
+	const lastStep = steps[steps.length - 1];
+	return lastStep?.state?.isEmptyLanguage || false;
 }
 
 /**

@@ -93,7 +93,11 @@ export default function Footer({
 					</div>
 
 					<div className="footer-property-right">
-						{renderLanguageProperty(isInfinite, 'UNENDLICH', 'ENDLICH')}
+						{isEmptyLanguage === true ? (
+							<span style={{ color: '#00ff00', fontWeight: 'bold' }}>ENDLICH</span>
+						) : (
+							renderLanguageProperty(isInfinite, 'UNENDLICH', 'ENDLICH')
+						)}
 					</div>
 				</div>
 			) : (

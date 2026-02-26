@@ -41,7 +41,10 @@ export function getStepPopupMessage(currentStep) {
 	}
 
 	if (currentStep.stage === 'result') {
-		return currentStep.state?.isEmptyLanguage ? 'Sprache ist leer' : 'Sprache ist nicht leer';
+		if (currentStep.state?.isEmptyLanguage) {
+			return 'Sprache ist leer (L(G) = ∅). Die leere Sprache ist endlich, da sie 0 Wörter enthält.';
+		}
+		return 'Sprache ist nicht leer';
 	}
 
 	if (currentStep.stage === 'cnf-build') {
