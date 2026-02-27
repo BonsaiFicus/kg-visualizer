@@ -215,13 +215,9 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 		cnfGraph: { ...newProductions }
 	});
 
-	// Schritt 2: Finde alle ε-Regeln (außer S0 → ε)
-	const nullableVars = new Set();
-	Object.keys(newProductions).forEach(A => {
-		if (A !== newStartSymbol && (newProductions[A] || []).some(p => isEpsilon(p))) {
-			nullableVars.add(A);
-		}
-	});
+	// Schritt 2: Finde alle nullable Variablen (direkt und indirekt), außer S0
+	const nullableVars = findNullableVariables(newProductions);
+	nullableVars.delete(newStartSymbol);
 
 	let updated = deepCopy(newProductions);
 
@@ -235,8 +231,11 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 Beginne ε-Eliminierung.
 
 
-Folgende Variablen können ε ableiten:
-${Array.from(nullableVars).map(v => `  ${v} → ε`).join('\n')}
+Folgende Variablen können ε ableiten (direkt oder indirekt):
+${Array.from(nullableVars).map(v => {
+	const isDirectNullable = (newProductions[v] || []).some(p => isEpsilon(p));
+	return isDirectNullable ? `  ${v} (direkt: ${v} → ε)` : `  ${v} (indirekt)`;
+}).join('\n')}
 
 Diese Regeln müssen eliminiert werden.
 
@@ -262,7 +261,8 @@ ${formatGrammar(newProductions, 'G\'')}\n`,
 			const affectedRules = new Map();
 			Object.keys(updated).forEach(A => {
 				(updated[A] || []).forEach((prod, idx) => {
-						if (!isEpsilon(prod) && prod.includes(epsVar)) {
+						const symbols = parseSymbols(prod);
+						if (!isEpsilon(prod) && symbols.includes(epsVar)) {
 						if (!affectedRules.has(A)) {
 							affectedRules.set(A, []);
 						}
