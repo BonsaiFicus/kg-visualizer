@@ -112,6 +112,44 @@ function isNonTerminal(symbol) {
 }
 
 /**
+ * Findet alle nullable Variablen (Variablen, die ε ableiten können).
+ * Verwendet einen Fixpunkt-Algorithmus für transitive Hülle.
+ */
+function findNullableVariables(productions) {
+	const nullable = new Set();
+	let changed = true;
+
+	while (changed) {
+		changed = false;
+		
+		for (const variable in productions) {
+			if (nullable.has(variable)) continue;
+			
+			const prods = productions[variable] || [];
+			for (const prod of prods) {
+				// Direkte ε-Produktion
+				if (isEpsilon(prod)) {
+					nullable.add(variable);
+					changed = true;
+					break;
+				}
+				
+				// Produktion besteht nur aus nullablen Variablen
+				const symbols = parseSymbols(prod);
+				const allNullable = symbols.every(sym => nullable.has(sym));
+				if (allNullable && symbols.length > 0) {
+					nullable.add(variable);
+					changed = true;
+					break;
+				}
+			}
+		}
+	}
+	
+	return nullable;
+}
+
+/**
  * Erzeugt Schritte zur ε- und Unit-Eliminierung in der CFG.
  * 
  * Algorithmus:
@@ -134,8 +172,10 @@ export default function generateRemoveEpsilonSteps(grammar, cnfGraph) {
 	// Schritt 1: Neue Startvariable S0 einführen
 	const initialProductions = deepCopy(productions);
 
-	// Überprüfe, ob ε in der ursprünglichen Sprache ist
-	const oldStartEps = (initialProductions[oldStartSymbol] || []).some(p => isEpsilon(p));
+	// Überprüfe, ob ε in der ursprünglichen Sprache ist (transitiv!)
+	// Das Startsymbol kann ε erzeugen, wenn es nullable ist
+	const nullableVariables = findNullableVariables(initialProductions);
+	const oldStartEps = nullableVariables.has(oldStartSymbol);
 
 	// Neue Startvariable mit altem Startsymbol und optional ε
 	const newProductions = deepCopy(initialProductions);
